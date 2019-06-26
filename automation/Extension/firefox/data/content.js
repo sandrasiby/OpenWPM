@@ -253,7 +253,7 @@ function getPageScript() {
     var inLog = false;
 
     // For gets, sets, etc. on a single value
-    function logValue(instrumentedVariableName, value, operation, callContext, logSettings) {
+    function logValue(instrumentedVariableName, value, attributes, operation, callContext, logSettings) {
       if(inLog)
         return;
       inLog = true;
@@ -264,10 +264,18 @@ function getPageScript() {
         return;
       }
 
+      //attributes is a NamedNodeMap. Doing a conversion to object, taking only names and values.
+      //Doing this only for src calls for now.
+      if (instrumentedVariableName.includes('Element.src')) {
+        newObject = Object.assign({}, Array.from(attributes, ({name, value}) => ({[name]: value})));
+        attributes = newObject;
+      }
+
       var msg = {
         operation: operation,
         symbol: instrumentedVariableName,
         value: serializeObject(value, !!logSettings.logFunctionsAsStrings),
+        attributes: serializeObject(attributes),
         scriptUrl: callContext.scriptUrl,
         scriptLine: callContext.scriptLine,
         scriptCol: callContext.scriptCol,
@@ -288,7 +296,7 @@ function getPageScript() {
     }
 
     // For functions
-    function logCall(instrumentedFunctionName, args, callContext, logSettings) {
+    function logCall(instrumentedFunctionName, args, attributes, callContext, logSettings) {
       if(inLog)
         return;
       inLog = true;
@@ -304,10 +312,18 @@ function getPageScript() {
         var serialArgs = [ ];
         for(var i = 0; i < args.length; i++)
           serialArgs.push(serializeObject(args[i], !!logSettings.logFunctionsAsStrings));
+        
+        //attributes is a NamedNodeMap. Doing a conversion to object, taking only names and values.
+        if (instrumentedFunctionName === 'window.document.createElement') {
+          newObject = Object.assign({}, Array.from(attributes, ({name, value}) => ({[name]: value})));
+          attributes = newObject;
+        }
+
         var msg = {
           operation: "call",
           symbol: instrumentedFunctionName,
           args: serialArgs,
+          attributes: serializeObject(attributes),
           value: "",
           scriptUrl: callContext.scriptUrl,
           scriptLine: callContext.scriptLine,
@@ -453,7 +469,20 @@ function getPageScript() {
     function instrumentFunction(objectName, methodName, func, logSettings) {
       return function () {
         var callContext = getOriginatingScriptContext(!!logSettings.logCallStack);
-        logCall(objectName + '.' + methodName, arguments, callContext, logSettings);
+        var attributes = "";
+
+        // Check for creation of element. Set an openwpm attribute to identify this
+        // element later. 
+        if (methodName == "createElement") {
+          var funcRef = func.apply(this, arguments);
+          //Setting a random 5-digit tag for now.
+          var tag = Math.floor(Math.random() * Math.pow(10, 5)); 
+          funcRef.setAttribute("openwpm", tag);
+          attributes = funcRef.attributes;
+          logCall(objectName + '.' + methodName, arguments, attributes, callContext, logSettings);
+          return funcRef;
+        }
+        logCall(objectName + '.' + methodName, arguments, attributes, callContext, logSettings);
         return func.apply(this, arguments);
       };
     }
@@ -473,6 +502,7 @@ function getPageScript() {
       var originalSetter = propDesc.set;
       var originalValue = propDesc.value;
 
+
       // We overwrite both data and accessor properties as an instrumented
       // accessor property
       Object.defineProperty(object, propertyName, {
@@ -481,7 +511,7 @@ function getPageScript() {
           return function() {
             var origProperty;
             var callContext = getOriginatingScriptContext(!!logSettings.logCallStack);
-
+            var attributes = "";
             // get original value
             if (originalGetter) { // if accessor property
               origProperty = originalGetter.call(this);
@@ -491,7 +521,7 @@ function getPageScript() {
               console.error("Property descriptor for",
                             objectName + '.' + propertyName,
                             "doesn't have getter or value?");
-              logValue(objectName + '.' + propertyName, "",
+              logValue(objectName + '.' + propertyName, "", attributes,
                   "get(failed)", callContext, logSettings);
               return;
             }
@@ -507,7 +537,7 @@ function getPageScript() {
               (!('depth' in logSettings) || logSettings.depth > 0)) {
               return origProperty;
             } else {
-              logValue(objectName + '.' + propertyName, origProperty,
+              logValue(objectName + '.' + propertyName, origProperty, attributes,
                   "get", callContext, logSettings);
               return origProperty;
             }
@@ -517,12 +547,13 @@ function getPageScript() {
           return function(value) {
             var callContext = getOriginatingScriptContext(!!logSettings.logCallStack);
             var returnValue;
+            var attributes = "";
 
             // Prevent sets for functions and objects if enabled
             if (!!logSettings.preventSets && (
                 typeof originalValue === 'function' ||
                 typeof originalValue === 'object')) {
-              logValue(objectName + '.' + propertyName, value,
+              logValue(objectName + '.' + propertyName, value, attributes,
                   "set(prevented)", callContext, logSettings);
               return value;
             }
@@ -530,6 +561,10 @@ function getPageScript() {
             // set new value to original setter/location
             if (originalSetter) { // if accessor property
               returnValue = originalSetter.call(this, value);
+              //Check for presence of openwpm tag. Get attributes if it is present.
+              if (this.getAttribute("openwpm")) {
+                attributes = this.attributes;
+              }
             } else if ('value' in propDesc) { // if data property
               inLog = true;
               if (object.isPrototypeOf(this)) {
@@ -545,13 +580,13 @@ function getPageScript() {
               console.error("Property descriptor for",
                             objectName + '.' + propertyName,
                             "doesn't have setter or value?");
-              logValue(objectName + '.' + propertyName, value,
+              logValue(objectName + '.' + propertyName, value, attributes,
                   "set(failed)", callContext, logSettings);
               return value;
             }
 
             // log set
-            logValue(objectName + '.' + propertyName, value,
+            logValue(objectName + '.' + propertyName, value, attributes,
                 "set", callContext, logSettings);
 
             // return new value
@@ -622,6 +657,22 @@ function getPageScript() {
       logCallStack: true
     });
 
+    // Access to document.createElement
+    instrumentObjectProperty(window.document, "window.document", "createElement");
+
+    // Access to Element
+    var excludedElementProperties = [ "setAttribute", "getAttribute", "attributes"];
+    
+    instrumentObject(window.HTMLScriptElement.prototype, "HTMLScriptElement", 
+      {'excludedProperties': excludedElementProperties}
+    );
+    instrumentObject(window.HTMLIFrameElement.prototype, "HTMLIFrameElement", 
+      {'excludedProperties': excludedElementProperties}
+    );
+    instrumentObject(window.HTMLImageElement.prototype, "HTMLImageElement", 
+      {'excludedProperties': excludedElementProperties}
+    );
+    
     // Access to canvas
     instrumentObject(window.HTMLCanvasElement.prototype,"HTMLCanvasElement");
 
@@ -645,6 +696,9 @@ function getPageScript() {
     instrumentObject(window.AnalyserNode.prototype, "AnalyserNode");
     instrumentObject(window.GainNode.prototype, "GainNode");
     instrumentObject(window.ScriptProcessorNode.prototype, "ScriptProcessorNode");
+
+    //Access to WebSocket API
+    instrumentObject(window.WebSocket.prototype, "WebSocket");
 
     console.log("Successfully started all instrumentation.");
 

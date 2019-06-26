@@ -14,6 +14,7 @@ exports.run = function(crawlID, testing) {
     },
     onAttach: function onAttach(worker) {
       function processCallsAndValues(data) {
+        console.log("process log call");
         var update = {};
         update["crawl_id"] = crawlID;
         update["script_url"] = loggingDB.escapeString(data.scriptUrl);
@@ -25,6 +26,7 @@ exports.run = function(crawlID, testing) {
         update["symbol"] = loggingDB.escapeString(data.symbol);
         update["operation"] = loggingDB.escapeString(data.operation);
         update["value"] = loggingDB.escapeString(data.value);
+        update["attributes"] = loggingDB.escapeString(data.attributes);
         update["time_stamp"] = data.timeStamp;
 
         // document_url is the current frame's document href

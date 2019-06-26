@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS javascript(
     operation TEXT,
     value TEXT,
     arguments TEXT,
+    attributes TEXT,
     time_stamp TEXT NOT NULL
 );
 
