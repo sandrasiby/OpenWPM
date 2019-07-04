@@ -267,6 +267,8 @@ function getPageScript() {
       //attributes is a NamedNodeMap. Doing a conversion to object, taking only names and values.
       //Doing this only for src calls for now.
       if (instrumentedVariableName.includes('Element.src')) {
+        var completeUrl = new URL(value, window.location.href);
+        value = completeUrl.href;
         newObject = Object.assign({}, Array.from(attributes, ({name, value}) => ({[name]: value})));
         attributes = newObject;
       }
