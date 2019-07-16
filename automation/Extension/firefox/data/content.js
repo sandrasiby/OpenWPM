@@ -234,6 +234,15 @@ function getPageScript() {
       }
     }
 
+    function getAttributes (attributes) {
+      return Array.from(attributes)
+        .map(a => [a.name, a.value])
+        .reduce((acc, attr) => {
+          acc[attr[0]] = attr[1]
+          return acc
+        }, {})
+    }
+
     // Counter to cap # of calls logged for each script/api combination
     var maxLogCount = 500;
     var logCounter = new Object();
@@ -264,12 +273,12 @@ function getPageScript() {
         return;
       }
 
-      //attributes is a NamedNodeMap. Doing a conversion to object, taking only names and values.
+      //attributes is a NamedNodeMap. Doing a conversion, taking only names and values.
       //Doing this only for src calls for now.
       if (instrumentedVariableName.includes('Element.src')) {
         var completeUrl = new URL(value, window.location.href);
         value = completeUrl.href;
-        newObject = Object.assign({}, Array.from(attributes, ({name, value}) => ({[name]: value})));
+        newObject = getAttributes(attributes);
         attributes = newObject;
       }
 
@@ -315,9 +324,9 @@ function getPageScript() {
         for(var i = 0; i < args.length; i++)
           serialArgs.push(serializeObject(args[i], !!logSettings.logFunctionsAsStrings));
         
-        //attributes is a NamedNodeMap. Doing a conversion to object, taking only names and values.
+        //attributes is a NamedNodeMap. Doing a conversion, taking only names and values.
         if (instrumentedFunctionName === 'window.document.createElement') {
-          newObject = Object.assign({}, Array.from(attributes, ({name, value}) => ({[name]: value})));
+          newObject = getAttributes(attributes);
           attributes = newObject;
         }
 
@@ -663,7 +672,7 @@ function getPageScript() {
     instrumentObjectProperty(window.document, "window.document", "createElement");
 
     // Access to Element
-    var excludedElementProperties = [ "setAttribute", "getAttribute", "attributes"];
+    var excludedElementProperties = ["getAttribute", "attributes"];
     
     instrumentObject(window.HTMLScriptElement.prototype, "HTMLScriptElement", 
       {'excludedProperties': excludedElementProperties}
