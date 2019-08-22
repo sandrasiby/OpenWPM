@@ -1,0 +1,21 @@
+<html>
+<title>WebSocket Test Page</title>
+<p> WebSocket Test Page</p>
+<pre id='results'></pre>
+
+<script>
+
+var testSocket = new WebSocket("ws://localhost:8765");
+
+testSocket.onopen = function (event) {
+    testSocket.send("Hello World");    
+}
+
+testSocket.onmessage = function (event) {
+    console.log(event.data);
+}
+
+//testSocket.close();
+</script>
+
+</html>

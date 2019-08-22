@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Event Handler Test Case</title>
+    </head>
+    <body>
+        <script>
+            window.onload = function xyz() {
+                const p = Promise.resolve("A");
+                p.then(function abc(_) {
+                    document.body.className = "my new class";
+                })
+            };
+        </script>
+    </body>
+</html>

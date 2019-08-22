@@ -1,0 +1,14 @@
+<html>
+<title>Document createElement() Test Page</title>
+<p> createElement() and src Test Page</p>
+<pre id='results'></pre>
+<body>
+	<script>
+		function changeSrc() {
+			document.getElementById("test").src = "https://images-na.ssl-images-amazon.com/images/I/51iVS%2BAhOoL._SX355_.jpg";
+			//document.getElementById("test").contentWindow.location = "https://images-na.ssl-images-amazon.com/images/I/51iVS%2BAhOoL._SX355_.jpg";
+		}
+	</script>
+	<iframe id="test" src="about:blank" onload="changeSrc()"/>
+</body>
+</html>

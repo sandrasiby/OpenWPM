@@ -1,0 +1,27 @@
+<html>
+<body>
+<script>
+	window.set2Func = (aImg) => {
+		aImg.src = "https://images-na.ssl-images-amazon.com/images/I/51iVS%2BAhOoL._SX355_.jpg";
+	};
+</script>
+<script>
+	window.mainFunc = () => {
+		const aImg = document.createElement("img");
+		window.document.body.appendChild(aImg);
+		window.set1Func(aImg);
+	};
+</script>
+<script>
+	window.set1Func = (aImg) => {
+		aImg.id = "hello";
+		aImg.src = "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png";
+		window.set2Func(aImg);
+	};
+</script>
+<script>
+	Promise.resolve()
+	.then( () => mainFunc());
+</script>
+</body>
+</html>

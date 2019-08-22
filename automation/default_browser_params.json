@@ -1,10 +1,10 @@
 {
     "extension_enabled": true,
-    "cookie_instrument": false,
-    "js_instrument": false,
-    "http_instrument": false,
-    "save_javascript": false,
-    "save_all_content": false,
+    "cookie_instrument": true,
+    "js_instrument": true,
+    "http_instrument": true,
+    "save_javascript": true,
+    "save_all_content": true,
 
     "random_attributes": false,
     "bot_mitigation": false,
@@ -22,5 +22,6 @@
     "https-everywhere": false,
     "adblock-plus": false,
     "ublock-origin": false,
-    "tracking-protection": false
+    "tracking-protection": false,
+    "caching_disabled": false
 }
