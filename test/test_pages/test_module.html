@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Module Script Test Case</title>
+    </head>
+    <body>
+        <!-- Loading a module script first. -->
+        <script src="main.js" type="module"></script>
+        <!-- Loading a classic script. -->
+        <script src="classic.js"></script>
+        <!-- Creating an inline classic script ad well. -->
+        <script type="text/javascript">
+            var para = document.createElement("p");
+            var node = document.createTextNode("This is new.");
+            para.appendChild(node);
+            document.body.appendChild(para);
+        </script>
+    </body>
+</html>

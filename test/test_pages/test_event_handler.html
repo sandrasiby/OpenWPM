@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Event Handler Test Case</title>
+    </head>
+    <body>
+        <script>
+            window.onload = function xyz() {
+                const p = Promise.resolve("A");
+                p.then(function abc(_) {
+                    document.body.className = "my new class";
+                    var newimg = document.createElement("img");
+                    newimg.src = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgrjE6kteaw0qJ2jeeeeOUyR_-qb-DQ9ke3j33pS_dE0vvQXDR";
+                    document.body.appendChild(newimg);
+                })
+            };
+        </script>
+    </body>
+</html>

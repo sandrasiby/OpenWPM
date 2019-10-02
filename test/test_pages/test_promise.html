@@ -1,0 +1,27 @@
+<html>
+    <body>
+    <script>
+        window.firstFunc = (aDiv) => {
+            aDiv.setAttribute("class", "snap-class");
+        };
+    </script>
+    <script>
+        window.coolFunc = () => {
+            const aDiv = document.createElement("img");
+            //aDiv.appendChild(document.createTextNode("hello world"));
+            window.document.body.appendChild(aDiv);
+            window.secFunc(aDiv);
+            window.firstFunc(aDiv);
+        };
+    </script>
+    <script>
+        window.secFunc = (aDiv) => {
+            aDiv.setAttribute("id", "hello-world");
+        };
+    </script>
+    <script>
+        Promise.resolve()
+            .then( () => coolFunc());
+    </script>
+    </body>
+</html>
