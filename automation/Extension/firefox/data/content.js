@@ -672,7 +672,8 @@ function getPageScript() {
     instrumentObjectProperty(window.document, "window.document", "createElement");
 
     // Access to Element
-    var excludedElementProperties = ["getAttribute", "attributes"];
+    var excludedElementProperties = [];
+    //var excludedElementProperties = ["getAttribute", "attributes"];
     
     instrumentObject(window.HTMLScriptElement.prototype, "HTMLScriptElement", 
       {'excludedProperties': excludedElementProperties}
