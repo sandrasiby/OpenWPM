@@ -684,6 +684,7 @@ function getPageScript() {
     instrumentObject(window.HTMLImageElement.prototype, "HTMLImageElement", 
       {'excludedProperties': excludedElementProperties}
     );
+
     
     // Access to canvas
     instrumentObject(window.HTMLCanvasElement.prototype,"HTMLCanvasElement");
@@ -711,6 +712,40 @@ function getPageScript() {
 
     //Access to WebSocket API
     instrumentObject(window.WebSocket.prototype, "WebSocket");
+
+    //Add mutation observer
+    var mutationConfig = {
+      attributeOldValue: true,
+      attributes: true,
+      characterDataOldValue: true,
+      characterData: true,
+      childList: true,
+      subtree: true
+    }
+
+    function mutationCallback(mutationList, mutationObserver) {
+      console.log("In mutation callback");
+      for (let mut of mutationList) {
+        // console.log("type:", mut.type);
+        // console.log("target:", mut.target);
+        // console.log("added:", mut.addedNodes);
+        // console.log("removed:", mut.removedNodes);
+        // console.log("attribute:", mut.attributeName);
+        // console.log("attributens:", mut.attributeNameSpace);
+        // console.log("oldval:", mut.oldValue);
+
+        //check specifically for removal
+        if ((mut.type === 'childList') && (mut.removedNodes.length > 0)) {
+          console.log("removed!", mut.removedNodes);
+          for (var i = 0; i < mut.removedNodes.length; i++) {
+            var rn = mut.removedNodes[i];
+            console.log(rn.attributes.getNamedItem("openwpm"));
+          }
+        }
+      }      
+    }
+    var mutationObserver = new MutationObserver(mutationCallback);
+    mutationObserver.observe(document.body, mutationConfig);
 
     console.log("Successfully started all instrumentation.");
 
