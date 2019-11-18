@@ -7,9 +7,14 @@ import sys
 
 def crawl_data(number_of_browsers = 1, exit_crawl_after = 5, slice_end = 1000000):
     NUM_BROWSERS = number_of_browsers
-    SITES = ['http://' + x for x in cu.sample_top_sites(
-                                location=os.path.expanduser('~/Desktop/'), 
-                                slices=[(10000, 0, 10000), (10000, 10000, slice_end)])]
+    with open('top-1m_30-09-2019.csv') as f:
+        lines = f.readlines()
+    SITES = lines[:exit_crawl_after]
+    SITES = ['http://www.' + x.strip().split(',')[1] for x in SITES]
+    
+    # SITES = ['http://' + x for x in cu.sample_top_sites(
+    #                             location=os.path.expanduser('~/Desktop/'), 
+    #                             slices=[(10000, 0, 10000), (10000, 10000, slice_end)])]
 
     manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
 
@@ -37,7 +42,7 @@ def crawl_data(number_of_browsers = 1, exit_crawl_after = 5, slice_end = 1000000
         manager.execute_command_sequence(command_sequence)
     
         count += 1
-        if count % 1000 == 0:
+        if count % 100 == 0:
             print "Total crawled: ", count
     manager.close()
 

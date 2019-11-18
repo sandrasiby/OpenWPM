@@ -325,7 +325,7 @@ function getPageScript() {
           serialArgs.push(serializeObject(args[i], !!logSettings.logFunctionsAsStrings));
         
         //attributes is a NamedNodeMap. Doing a conversion, taking only names and values.
-        if (instrumentedFunctionName === 'window.document.createElement') {
+        if (instrumentedFunctionName === 'window.document.createElement' || instrumentedFunctionName.includes('attr_modified') || instrumentedFunctionName.includes('attr_added') || instrumentedFunctionName.includes('attr_removed')) {
           newObject = getAttributes(attributes);
           attributes = newObject;
         }
@@ -462,6 +462,7 @@ function getPageScript() {
                 'depth': logSettings['depth'] - 1
           });
         }
+
         try {
           instrumentObjectProperty(object, objectName, properties[i], logSettings);
         } catch(error) {
@@ -473,11 +474,48 @@ function getPageScript() {
       window.instrumentObject = instrumentObject;
     }
 
+    /**********************************************************************/
+
+     function createMutationObserver(object, objectName, logSettings) {
+        
+        var mutationConfig = {
+          attributeOldValue: true,
+          attributes: true,
+          characterDataOldValue: true,
+          characterData: true,
+          childList: true,
+          subtree: true
+        }
+
+        function mutationCallback(mutationList, mutationObserver) {
+          for (let mut of mutationList) {
+            //check specifically for removal
+            if ((mut.type === 'childList') && (mut.removedNodes.length > 0)) {
+              console.log("removed!", mut.removedNodes, mut.target);
+              for (var i = 0; i < mut.removedNodes.length; i++) {
+                var rn = mut.removedNodes[i];
+                var attributes = rn.attributes; //.getNamedItem("openwpm");
+                console.log("going to script context");
+                var callContext = getOriginatingScriptContext(!!logSettings.logCallStack);
+                console.log("in removed", callContext);
+                logCall(rn.nodeName + ".removed", "", attributes, callContext, logSettings)
+              }
+            }
+          }      
+        }
+        var mutationObserver = new MutationObserver(mutationCallback);
+        mutationObserver.observe(object, mutationConfig);
+        return mutationObserver;
+    }
+
+    /************************************************************************/
+
+
     // Log calls to a given function
     // This helper function returns a wrapper around `func` which logs calls
     // to `func`. `objectName` and `methodName` are used strictly to identify
     // which object method `func` is coming from in the logs
-    function instrumentFunction(objectName, methodName, func, logSettings) {
+    function instrumentFunction(object, objectName, methodName, func, logSettings) {
       return function () {
         var callContext = getOriginatingScriptContext(!!logSettings.logCallStack);
         var attributes = "";
@@ -485,6 +523,25 @@ function getPageScript() {
         // Check for creation of element. Set an openwpm attribute to identify this
         // element later. 
         if (methodName == "createElement") {
+          //var observer = createMutationObserver(object, objectName, logSettings);
+          object.addEventListener("DOMAttrModified", function (event) {
+            console.log("in modify listener!");
+            switch(event.attrChange) {
+              case MutationEvent.MODIFICATION:
+              console.log("modified!");
+              var node = event.target.tagName;
+              logCall(node + ".attr_modified", "", event.target.attributes, callContext, logSettings);
+              break;
+              case MutationEvent.ADDITION:
+              console.log("added!");
+              logCall(node + ".attr_added", "", event.target.attributes, callContext, logSettings);
+              break;
+              case MutationEvent.REMOVAL:
+              console.log("removed!");
+              logCall(node + ".attr_removed", "", event.target.attributes, callContext, logSettings);
+              break;
+            }
+          }, false);
           var funcRef = func.apply(this, arguments);
           //Setting a random 5-digit tag for now.
           var tag = Math.floor(Math.random() * Math.pow(10, 5)); 
@@ -542,7 +599,7 @@ function getPageScript() {
             // * Returned objects may be instrumented if recursive
             //   instrumentation is enabled and this isn't at the depth limit.
             if (typeof origProperty == 'function') {
-              return instrumentFunction(objectName, propertyName, origProperty, logSettings);
+              return instrumentFunction(object, objectName, propertyName, origProperty, logSettings);
             } else if (typeof origProperty == 'object' &&
               !!logSettings.recursive &&
               (!('depth' in logSettings) || logSettings.depth > 0)) {
@@ -684,6 +741,10 @@ function getPageScript() {
     instrumentObject(window.HTMLImageElement.prototype, "HTMLImageElement", 
       {'excludedProperties': excludedElementProperties}
     );
+    instrumentObject(window.HTMLStyleElement.prototype, "HTMLStyleElement", 
+      {'excludedProperties': excludedElementProperties}
+    );
+
 
     
     // Access to canvas
@@ -712,40 +773,6 @@ function getPageScript() {
 
     //Access to WebSocket API
     instrumentObject(window.WebSocket.prototype, "WebSocket");
-
-    //Add mutation observer
-    var mutationConfig = {
-      attributeOldValue: true,
-      attributes: true,
-      characterDataOldValue: true,
-      characterData: true,
-      childList: true,
-      subtree: true
-    }
-
-    function mutationCallback(mutationList, mutationObserver) {
-      console.log("In mutation callback");
-      for (let mut of mutationList) {
-        // console.log("type:", mut.type);
-        // console.log("target:", mut.target);
-        // console.log("added:", mut.addedNodes);
-        // console.log("removed:", mut.removedNodes);
-        // console.log("attribute:", mut.attributeName);
-        // console.log("attributens:", mut.attributeNameSpace);
-        // console.log("oldval:", mut.oldValue);
-
-        //check specifically for removal
-        if ((mut.type === 'childList') && (mut.removedNodes.length > 0)) {
-          console.log("removed!", mut.removedNodes);
-          for (var i = 0; i < mut.removedNodes.length; i++) {
-            var rn = mut.removedNodes[i];
-            console.log(rn.attributes.getNamedItem("openwpm"));
-          }
-        }
-      }      
-    }
-    var mutationObserver = new MutationObserver(mutationCallback);
-    mutationObserver.observe(document.body, mutationConfig);
 
     console.log("Successfully started all instrumentation.");
 
