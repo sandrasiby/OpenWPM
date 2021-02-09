@@ -26,10 +26,15 @@
         ]
     }},
     {"window": {
-        "propertiesToInstrument": ["name", "localStorage", "sessionStorage"]
+        "propertiesToInstrument": ["name", "localStorage", "sessionStorage", "indexedDB", "location"],
+        "logCallStack": true
     }},
     {"window.document": {
         "propertiesToInstrument": ["cookie", "referrer"],
+        "logCallStack": true
+    }},
+    {"document": {
+        "propertiesToInstrument": ["location"],
         "logCallStack": true
     }},
     {"window.screen": {
