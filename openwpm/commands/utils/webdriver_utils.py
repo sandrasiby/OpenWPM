@@ -52,6 +52,12 @@ def scroll_down(driver):
         )
         time.sleep(0.5 + random.random())
 
+def scroll_to_position(driver, x, y):
+    try:
+        driver.execute_script("window.scrollTo(%s, %s);" % (
+            x, y))
+    except WebDriverException:
+        pass
 
 def scroll_to_bottom(driver):
     try:

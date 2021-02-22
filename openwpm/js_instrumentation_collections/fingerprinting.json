@@ -7,7 +7,6 @@
     "AudioContext",
     "RTCPeerConnection",
     "HTMLCanvasElement",
-    "Storage",
     "window.navigator",
     {"CanvasRenderingContext2D": {
         "excludedProperties": [
@@ -25,16 +24,15 @@
             "translate"
         ]
     }},
+    {"Storage": {
+        "logCallStack": true
+    }},
     {"window": {
-        "propertiesToInstrument": ["name", "localStorage", "sessionStorage", "indexedDB", "location"],
+        "propertiesToInstrument": ["name", "localStorage", "sessionStorage", "indexedDB"],
         "logCallStack": true
     }},
     {"window.document": {
         "propertiesToInstrument": ["cookie", "referrer"],
-        "logCallStack": true
-    }},
-    {"document": {
-        "propertiesToInstrument": ["location"],
         "logCallStack": true
     }},
     {"window.screen": {

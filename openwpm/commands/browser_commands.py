@@ -8,6 +8,8 @@ import time
 import traceback
 from glob import glob
 from hashlib import md5
+from selenium.webdriver.common.keys import Keys
+from bs4 import BeautifulSoup
 
 from PIL import Image
 from selenium.common.exceptions import (
@@ -16,6 +18,7 @@ from selenium.common.exceptions import (
     WebDriverException,
 )
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -27,6 +30,9 @@ from .utils.webdriver_utils import (
     is_displayed,
     scroll_down,
     wait_until_loaded,
+    scroll_to_position, 
+    scroll_to_element,
+    move_to_element
 )
 
 # Constants for bot mitigation
@@ -36,27 +42,48 @@ RANDOM_SLEEP_LOW = 1  # low (in sec) for random sleep between page loads
 RANDOM_SLEEP_HIGH = 7  # high (in sec) for random sleep between page loads
 logger = logging.getLogger("openwpm")
 
+# Constants for bot mitigation
+NUM_MOUSE_MOVES = 10  # Times to randomly move the mouse
+RANDOM_SLEEP_LOW = 1  # low (in sec) for random sleep between page loads
+RANDOM_SLEEP_HIGH = 7  # high (in sec) for random sleep between page loads
+logger = logging.getLogger('openwpm')
+
 
 def bot_mitigation(webdriver):
-    """performs three optional commands for bot-detection
-    mitigation when getting a site"""
+    """ performs some random movements on the webpage """
 
-    # bot mitigation 1: move the randomly around a number of times
-    window_size = webdriver.get_window_size()
+    #  move the randomly around a number of times
+    scroll_height = webdriver.execute_script("return document.body.scrollHeight") 
+    scroll_width = webdriver.execute_script("return document.body.scrollWidth")
+
     num_moves = 0
     num_fails = 0
+
     while num_moves < NUM_MOUSE_MOVES + 1 and num_fails < NUM_MOUSE_MOVES:
         try:
             if num_moves == 0:  # move to the center of the screen
-                x = int(round(window_size["height"] / 2))
-                y = int(round(window_size["width"] / 2))
+                x = int(round(scroll_height / 2))
+                y = int(round(scroll_width / 2))
             else:  # move a random amount in some direction
-                move_max = random.randint(0, 500)
-                x = random.randint(-move_max, move_max)
-                y = random.randint(-move_max, move_max)
-            action = ActionChains(webdriver)
-            action.move_by_offset(x, y)
-            action.perform()
+                move_x_1 = random.randint(0, scroll_width)
+                move_x_2 = random.randint(0, scroll_width)
+                move_y_1 = random.randint(0, scroll_height)
+                move_y_2 = random.randint(0, scroll_height)
+                
+                min_x, max_x = min(move_x_1, move_x_2), max(move_x_1, move_x_2)
+                min_y, max_y = min(move_y_1, move_y_2), max(move_y_1, move_y_2)
+
+                if min_x == max_x:
+                    x = min_x
+                else:
+                    x = random.randint(min_x, max_x)
+                
+                if min_y == max_y:
+                    y = min_y
+                else:
+                    y = random.randint(min_y, max_y)
+            scroll_to_position(webdriver, x, y)
+            time.sleep(0.3)
             num_moves += 1
         except MoveTargetOutOfBoundsException:
             num_fails += 1
@@ -67,7 +94,93 @@ def bot_mitigation(webdriver):
 
     # bot mitigation 3: randomly wait so page visits happen with irregularity
     time.sleep(random.randrange(RANDOM_SLEEP_LOW, RANDOM_SLEEP_HIGH))
+    
+    n_iframes_to_open = random.randint(3,6)
 
+    orig_iframes = webdriver.find_elements_by_tag_name('iframe')
+    iframes = []
+    if len(orig_iframes) > n_iframes_to_open:
+        iframes = random.sample(orig_iframes, n_iframes_to_open)
+    else:
+        iframes = orig_iframes
+
+    i = 0
+    while (i < len(iframes)):
+        try:
+            element = iframes[i]
+            scroll_to_element(webdriver,element)
+            move_to_element(webdriver, element)
+            
+            if not(element.is_enabled() and element.is_displayed()):
+                raise Exception('Element is not enabled and displayed')
+            
+            action = ActionChains(webdriver)
+            action.key_down(Keys.SHIFT)
+            action.click(element)
+            #action.key_up(Keys.COMMAND)
+            #action.key_down(Keys.CONTROL)
+            # action.key_down(Keys.ENTER)
+            # action.key_up(Keys.ENTER)
+            action.key_up(Keys.SHIFT)
+            action.perform()
+            print(i, 'iframe clicked')
+            time.sleep(1)
+        except Exception as e:
+            print('unable to click iframe: ', str(e))
+            try:
+                if len(orig_iframes) > n_iframes_to_open:
+                    iframes.append(random.choice([iframe for iframe in orig_iframes if iframe not in iframes]))
+            except Exception as ex:
+                print('limit reached: ', str(ex))
+
+        i += 1
+
+    n_atags_to_open = random.randint(3,6)
+    orig_anchor_tags = webdriver.find_elements_by_tag_name('a')
+    anchor_tags = []
+    if len(orig_anchor_tags) > n_atags_to_open:
+        anchor_tags = random.sample(orig_anchor_tags, n_atags_to_open)
+    else:
+        anchor_tags = orig_anchor_tags
+
+    i = 0
+    while (i < len(anchor_tags)):
+        try:
+            element = anchor_tags[i]
+            # elm = BeautifulSoup(element,'html.parser')
+            #href = webdriver.execute_script("return arguments[0].href", element)
+            #webdriver.execute_script("""arguments[0].dispatchEvent(new MouseEvent("click", {"shiftKey": true}));""",element)
+            # href = elm.href
+            # print('href', href)
+            # webdriver_wait = WebDriverWait(webdriver, 2)
+
+            # element = webdriver_wait.until(EC.element_to_be_clickable(webdriver.find_elements_by_xpath('//a[@href="'+href+'"]')[0]))
+            
+            scroll_to_element(webdriver,element)
+            move_to_element(webdriver, element)
+
+            if not(element.is_enabled() and element.is_displayed()):
+                raise Exception('Element is not enabled and displayed')
+            action = ActionChains(webdriver)
+            action.key_down(Keys.SHIFT)
+            action.click(element)
+            action.key_up(Keys.SHIFT)
+            # action.key_down(Keys.CONTROL)
+            #action.key_down(Keys.ENTER)
+            #action.key_up(Keys.ENTER)
+            # action.key_up(Keys.CONTROL)
+            action.perform()
+            print(i, 'anchor tag clicked')
+            time.sleep(1)
+        except Exception as e:
+            print('unable to click anchor tag: ', str(e))
+            try:
+                if len(orig_anchor_tags) > n_atags_to_open:
+                    anchor_tags.append(random.choice([anchor_tag for anchor_tag in orig_anchor_tags if anchor_tag not in anchor_tags]))
+            except Exception as ex:
+                print('limit reached: ', str(ex))
+        i += 1
+    time.sleep(5)
 
 def close_other_windows(webdriver):
     """

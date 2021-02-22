@@ -6,12 +6,14 @@ from openwpm.task_manager import TaskManager
 
 # The list of sites that we wish to crawl
 NUM_BROWSERS = 1
-sites = [
-    "http://www.example.com",
-    "http://www.princeton.edu",
-    "http://citp.princeton.edu/",
-]
-
+with open("sites_500") as f:
+    sites = f.readlines()
+    sites = ['http://' + x.strip() for x in sites]
+# sites = [
+#     #"http://localhost:8000/test_instr.html",
+#     "http://www.princeton.edu",
+#     #"http://www.google.com",
+# ]
 
 # Loads the default ManagerParams
 # and NUM_BROWSERS copies of the default BrowserParams
@@ -35,6 +37,10 @@ for i in range(NUM_BROWSERS):
     browser_params[i].callstack_instrument = True
     # Record DNS resolution
     browser_params[i].dns_instrument = True
+    # Bot mitigation
+    browser_params[i].bot_mitigation = True
+    # Block third party cookies
+    browser_params[i].tp_cookies = "never"
 
 # Update TaskManager configuration (use this for crawl-wide settings)
 manager_params.data_directory = "~/Desktop/"
