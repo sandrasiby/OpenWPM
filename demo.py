@@ -4,6 +4,20 @@ from openwpm.commands.browser_commands import GetCommand
 from openwpm.config import BrowserParams, ManagerParams
 from openwpm.task_manager import TaskManager
 import time
+import smtplib, ssl
+
+#Email
+port = 465  # For SSL
+smtp_server = "smtp.gmail.com"
+sender_email = "webgraph1234@gmail.com"  # Enter your address
+receiver_email = "webgraph1234@gmail.com"  # Enter receiver address
+password = input("Type your password and press enter: ")
+message = """\
+Subject: Bounce tracking crawl
+
+This message is sent from demo.py. Script has finished."""
+
+context = ssl.create_default_context()
 
 # The list of sites that we wish to crawl
 NUM_BROWSERS = 1
@@ -15,6 +29,8 @@ with open("sites_10k") as f:
 #     "http://www.princeton.edu",
 #     #"http://www.google.com",
 # ]
+
+sites = sites[:2]
 
 # Loads the default ManagerParams
 # and NUM_BROWSERS copies of the default BrowserParams
@@ -77,3 +93,7 @@ for site in sites:
 
 # Shuts down the browsers and waits for the data to finish logging
 manager.close()
+
+with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
+    server.login("webgraph1234@gmail.com", password)
+    server.sendmail(sender_email, receiver_email, message)
