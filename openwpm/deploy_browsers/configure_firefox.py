@@ -10,6 +10,9 @@ def privacy(browser_params, fp, fo, root_dir, browser_profile_path):
     * Privacy extensions
     """
 
+    # For Safari Emulation
+    fo.set_preference("general.useragent.override", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Safari/605.1.15")
+
     # Turns on Do Not Track
     if browser_params.donottrack:
         fo.set_preference("privacy.donottrackheader.enabled", True)

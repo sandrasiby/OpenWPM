@@ -536,7 +536,22 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
             origProperty = undefinedPropValue;
           } else if (originalGetter) {
             // if accessor property
-            origProperty = originalGetter.call(this);
+            if (instrumentedVariableName === "window.navigator.platform")
+            {
+              origProperty = "MacIntel";
+            }
+            else if (instrumentedVariableName === "window.navigator.vendor")
+            {
+              origProperty = "Apple Computer, Inc.";
+            }
+            else if (instrumentedVariableName === "window.navigator.appVersion")
+            {
+              origProperty = "5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Safari/605.1.15";
+            }
+            else {
+              origProperty = originalGetter.call(this);
+            }
+            // origProperty = originalGetter.call(this);
           } else if ("value" in propDesc) {
             // if data property
             origProperty = originalValue;

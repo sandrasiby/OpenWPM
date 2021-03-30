@@ -3,10 +3,11 @@ from openwpm.command_sequence import CommandSequence
 from openwpm.commands.browser_commands import GetCommand
 from openwpm.config import BrowserParams, ManagerParams
 from openwpm.task_manager import TaskManager
+import time
 
 # The list of sites that we wish to crawl
 NUM_BROWSERS = 1
-with open("sites_500") as f:
+with open("sites_10k") as f:
     sites = f.readlines()
     sites = ['http://' + x.strip() for x in sites]
 # sites = [
@@ -72,6 +73,7 @@ for site in sites:
 
     # Run commands across the three browsers (simple parallelization)
     manager.execute_command_sequence(command_sequence)
+
 
 # Shuts down the browsers and waits for the data to finish logging
 manager.close()
