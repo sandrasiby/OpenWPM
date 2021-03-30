@@ -1,6 +1,6 @@
 from custom_command import LinkCountingCommand
 from openwpm.command_sequence import CommandSequence
-from openwpm.commands.browser_commands import GetCommand
+from openwpm.commands.browser_commands import GetCommand, DumpPageSourceCommand
 from openwpm.config import BrowserParams, ManagerParams
 from openwpm.task_manager import TaskManager
 import time
@@ -20,7 +20,7 @@ This message is sent from demo.py. Script has finished."""
 context = ssl.create_default_context()
 
 # The list of sites that we wish to crawl
-NUM_BROWSERS = 1
+NUM_BROWSERS = 3
 with open("sites_10k") as f:
     sites = f.readlines()
     sites = ['http://' + x.strip() for x in sites]
@@ -29,8 +29,6 @@ with open("sites_10k") as f:
 #     "http://www.princeton.edu",
 #     #"http://www.google.com",
 # ]
-
-sites = sites[:2]
 
 # Loads the default ManagerParams
 # and NUM_BROWSERS copies of the default BrowserParams
@@ -86,6 +84,8 @@ for site in sites:
     command_sequence.append_command(GetCommand(url=site, sleep=3), timeout=60)
     # Have a look at custom_command.py to see how to implement your own command
     command_sequence.append_command(LinkCountingCommand())
+
+    command_sequence.append_command(DumpPageSourceCommand(suffix=""))
 
     # Run commands across the three browsers (simple parallelization)
     manager.execute_command_sequence(command_sequence)
