@@ -85,12 +85,15 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
+docs/apidoc/
 
 # npm packages
 node_modules
 
 # built extension artifacts
-openwpm/Extension/firefox/dist
-openwpm/Extension/firefox/openwpm.xpi
-openwpm/Extension/firefox/src/content.js
-openwpm/Extension/firefox/src/feature.js
+Extension/firefox/dist
+Extension/firefox/openwpm.xpi
+Extension/firefox/src/content.js
+Extension/firefox/src/feature.js
+
+datadir

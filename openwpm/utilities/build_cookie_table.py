@@ -8,7 +8,7 @@ from netlib.odict import ODictCaseless
 
 # This should be the modified Cookie.py included
 # the standard lib Cookie.py has many bugs
-from . import Cookie
+from . import cookie as Cookie
 
 # Potential formats for expires timestamps
 DATE_FORMATS = [
@@ -39,7 +39,7 @@ def encode_to_unicode(string):
 
 
 def select_date_format(date_string):
-    """ Try different formats for date and output sqlite format """
+    """Try different formats for date and output sqlite format"""
     if date_string == "" or date_string == "0":
         return None
     else:
@@ -148,7 +148,7 @@ def parse_cookies(cookie_string, verbose, url=None, response_cookie=False):
 
 
 def build_http_cookie_table(database, verbose=False):
-    """ Extracts all http-cookie data from headers and builds a new table """
+    """Extracts all http-cookie data from headers and builds a new table"""
     con = sqlite3.connect(database)
     cur1 = con.cursor()
     cur2 = con.cursor()
