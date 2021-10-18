@@ -5,7 +5,7 @@ from openwpm.config import BrowserParams, ManagerParams
 from openwpm.task_manager import TaskManager
 
 # The list of sites that we wish to crawl
-NUM_BROWSERS = 1
+NUM_BROWSERS = 3
 sites = [
     "http://www.example.com",
     "http://www.princeton.edu",
