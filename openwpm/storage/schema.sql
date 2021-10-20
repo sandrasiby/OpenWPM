@@ -152,6 +152,7 @@ CREATE TABLE IF NOT EXISTS javascript(
   symbol TEXT,
   operation TEXT,
   value TEXT,
+  attributes TEXT,
   arguments TEXT,
   time_stamp DATETIME NOT NULL
 );

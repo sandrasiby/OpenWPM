@@ -154,6 +154,7 @@ fields = [
     pa.field("symbol", pa.string()),
     pa.field("operation", pa.string()),
     pa.field("value", pa.string()),
+    pa.field("attributes", pa.string()),
     pa.field("arguments", pa.string()),
     pa.field("time_stamp", pa.string(), nullable=False),
 ]

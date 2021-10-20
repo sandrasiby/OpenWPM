@@ -30,6 +30,7 @@ export class JavascriptInstrument {
     update.symbol = escapeString(data.symbol);
     update.operation = escapeString(data.operation);
     update.value = escapeString(data.value);
+    update.attributes = escapeString(data.attributes);
     update.time_stamp = data.timeStamp;
     update.incognito = boolToInt(sender.tab.incognito);
 

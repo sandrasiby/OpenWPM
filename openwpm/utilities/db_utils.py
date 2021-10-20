@@ -44,7 +44,7 @@ def get_javascript_entries(
     if all_columns:
         select_columns = "*"
     else:
-        select_columns = "script_url, symbol, operation, value, arguments"
+        select_columns = "script_url, symbol, operation, value, arguments, attributes"
 
     return query_db(db, f"SELECT {select_columns} FROM javascript", as_tuple=as_tuple)
 

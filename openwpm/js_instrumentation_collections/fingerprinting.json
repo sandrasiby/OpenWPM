@@ -7,6 +7,9 @@
     "AudioContext",
     "RTCPeerConnection",
     "HTMLCanvasElement",
+    "HTMLImageElement",
+    "HTMLScriptElement",
+    "HTMLIFrameElement",
     "Storage",
     "window.navigator",
     {"CanvasRenderingContext2D": {
@@ -29,7 +32,7 @@
         "propertiesToInstrument": ["name", "localStorage", "sessionStorage"]
     }},
     {"window.document": {
-        "propertiesToInstrument": ["cookie", "referrer"],
+        "propertiesToInstrument": ["cookie", "referrer", "createElement"],
         "logCallStack": true
     }},
     {"window.screen": {

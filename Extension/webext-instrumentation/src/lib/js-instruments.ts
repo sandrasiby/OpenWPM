@@ -35,6 +35,15 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
    * (Inlined in order for jsInstruments to be easily exportable as a string)
    */
 
+  // function getAttributes (attributes) {
+  //     return Array.from(attributes)
+  //       .map(a => [a.name, a.value])
+  //       .reduce((acc, attr) => {
+  //         acc[attr[0]] = attr[1]
+  //         return acc
+  //       }, {})
+  //   }
+
   // Counter to cap # of calls logged for each script/api combination
   const maxLogCount = 500;
   // logCounter
@@ -224,6 +233,7 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
   function logValue(
     instrumentedVariableName: string,
     value: any,
+    attributes: any,
     operation: string, // from JSOperation object please
     callContext: any,
     logSettings: LogSettings,
@@ -242,10 +252,21 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
       return;
     }
 
+    //attributes is a NamedNodeMap. Doing a conversion, taking only names and values.
+    //Doing this only for src calls for now.
+    if (instrumentedVariableName.includes('Element.src')) {
+      var completeUrl = new URL(value, window.location.href);
+      value = completeUrl.href;
+      var newObject = Object.assign({}, Array.from(attributes, ({name, value}) => ({[name]: value})));
+      attributes = newObject;
+    }
+
+
     const msg = {
       operation,
       symbol: instrumentedVariableName,
       value: serializeObject(value, logSettings.logFunctionsAsStrings),
+      attributes: serializeObject(attributes),
       scriptUrl: callContext.scriptUrl,
       scriptLine: callContext.scriptLine,
       scriptCol: callContext.scriptCol,
@@ -269,6 +290,7 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
   function logCall(
     instrumentedFunctionName: string,
     args: IArguments,
+    attributes: any,
     callContext: any,
     logSettings: LogSettings,
   ) {
@@ -294,11 +316,18 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
           serializeObject(arg, logSettings.logFunctionsAsStrings),
         );
       }
+
+      if (instrumentedFunctionName === 'window.document.createElement') {
+          var newObject = Object.assign({}, Array.from(attributes, ({name, value}) => ({[name]: value})));
+          attributes = newObject;
+      }
+
       const msg = {
         operation: JSOperation.call,
         symbol: instrumentedFunctionName,
         args: serialArgs,
         value: "",
+        attributes: serializeObject(attributes),
         scriptUrl: callContext.scriptUrl,
         scriptLine: callContext.scriptLine,
         scriptCol: callContext.scriptCol,
@@ -439,11 +468,55 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
     func: any,
     logSettings: LogSettings,
   ) {
+
     return function () {
       const callContext = getOriginatingScriptContext(logSettings.logCallStack);
+
+      /*********************/
+      var attributes = "";
+
+      // Check for creation of element. Set an openwpm attribute to identify this
+      // element later. 
+      if (methodName == "createElement") {
+        //var observer = createMutationObserver(object, objectName, logSettings);
+        // object.addEventListener("DOMAttrModified", function (event) {
+        // console.log("in modify listener!");
+        // switch(event.attrChange) {
+        //   case MutationEvent.MODIFICATION:
+        //     console.log("modified!");
+        //     var node = event.target.tagName;
+        //     logCall(node + ".attr_modified", "", event.target.attributes, callContext, logSettings);
+        //     break;
+        //   case MutationEvent.ADDITION:
+        //     console.log("added!");
+        //     logCall(node + ".attr_added", "", event.target.attributes, callContext, logSettings);
+        //     break;
+        //   case MutationEvent.REMOVAL:
+        //     console.log("removed!");
+        //     logCall(node + ".attr_removed", "", event.target.attributes, callContext, logSettings);
+        //     break;
+        //   }
+        // }, false);
+        var funcRef = func.apply(this, arguments);
+        //Setting a random 5-digit tag for now.
+        var tag = Math.floor(Math.random() * Math.pow(10, 5)); 
+        funcRef.setAttribute("openwpm", tag);
+        attributes = funcRef.attributes;
+        logCall(
+          objectName + '.' + methodName, 
+          arguments, 
+          attributes, 
+          callContext, 
+          logSettings
+        );
+        return funcRef;
+      }
+      /*********************/
+
       logCall(
         objectName + "." + methodName,
         arguments,
+        attributes,
         callContext,
         logSettings,
       );
@@ -518,6 +591,7 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
             logSettings.logCallStack,
           );
           const instrumentedVariableName = `${objectName}.${propertyName}`;
+          var attributes = "";
 
           // get original value
           if (!propDesc) {
@@ -536,6 +610,7 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
             logValue(
               instrumentedVariableName,
               "",
+              attributes,
               JSOperation.get_failed,
               callContext,
               logSettings,
@@ -552,6 +627,7 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
               logValue(
                 instrumentedVariableName,
                 origProperty,
+                attributes,
                 JSOperation.get_function,
                 callContext,
                 logSettings,
@@ -583,6 +659,7 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
             logValue(
               instrumentedVariableName,
               origProperty,
+              attributes,
               JSOperation.get,
               callContext,
               logSettings,
@@ -598,6 +675,7 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
           );
           const instrumentedVariableName = `${objectName}.${propertyName}`;
           let returnValue;
+          var attributes = "";
 
           // Prevent sets for functions and objects if enabled
           if (
@@ -608,6 +686,7 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
             logValue(
               instrumentedVariableName,
               value,
+              attributes,
               JSOperation.set_prevented,
               callContext,
               logSettings,
@@ -619,6 +698,9 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
           if (originalSetter) {
             // if accessor property
             returnValue = originalSetter.call(this, value);
+            if (this.getAttribute("openwpm")) {
+                attributes = this.attributes;
+            }
           } else if ("value" in propDesc) {
             inLog = true;
             if (object.isPrototypeOf(this)) {
@@ -637,6 +719,7 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
             logValue(
               instrumentedVariableName,
               value,
+              attributes,
               JSOperation.set_failed,
               callContext,
               logSettings,
@@ -646,6 +729,7 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
           logValue(
             instrumentedVariableName,
             value,
+            attributes,
             JSOperation.set,
             callContext,
             logSettings,
