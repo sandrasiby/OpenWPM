@@ -73,47 +73,6 @@ def bot_mitigation(webdriver):
     # bot mitigation 3: randomly wait so page visits happen with irregularity
     time.sleep(random.randrange(RANDOM_SLEEP_LOW, RANDOM_SLEEP_HIGH))
 
-    n_iframes_to_open = random.randint(3, 6)
-
-    orig_iframes = webdriver.find_elements_by_tag_name('iframe')
-    iframes = []
-    if len(orig_iframes) > n_iframes_to_open:
-        iframes = random.sample(orig_iframes, n_iframes_to_open)
-    else:
-        iframes = orig_iframes
-
-    i = 0
-    while (i < len(iframes)):
-        try:
-            element = iframes[i]
-            scroll_to_element(webdriver, element)
-            move_to_element(webdriver, element)
-
-            if not(element.is_enabled() and element.is_displayed()):
-                raise Exception('Element is not enabled and displayed')
-
-            action = ActionChains(webdriver)
-            action.key_down(Keys.SHIFT)
-            action.click(element)
-            # action.key_up(Keys.COMMAND)
-            # action.key_down(Keys.CONTROL)
-            # action.key_down(Keys.ENTER)
-            # action.key_up(Keys.ENTER)
-            action.key_up(Keys.SHIFT)
-            action.perform()
-            print(i, 'iframe clicked')
-            time.sleep(1)
-        except Exception as e:
-            print('unable to click iframe: ', str(e))
-            try:
-                if len(orig_iframes) > n_iframes_to_open:
-                    iframes.append(random.choice(
-                        [iframe for iframe in orig_iframes if iframe not in iframes]))
-            except Exception as ex:
-                print('limit reached: ', str(ex))
-
-        i += 1
-
     n_atags_to_open = random.randint(3, 6)
     orig_anchor_tags = webdriver.find_elements_by_tag_name('a')
     anchor_tags = []
