@@ -85,6 +85,7 @@ def bot_mitigation(webdriver):
     while (i < len(anchor_tags)):
         try:
             element = anchor_tags[i]
+            print(element.get_attribute("href"))
             # elm = BeautifulSoup(element,'html.parser')
             #href = webdriver.execute_script("return arguments[0].href", element)
             #webdriver.execute_script("""arguments[0].dispatchEvent(new MouseEvent("click", {"shiftKey": true}));""",element)
