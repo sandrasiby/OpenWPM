@@ -5,10 +5,11 @@ import os
 import random
 import sys
 import time
-import jsonlines
 import tldextract
 import traceback
 from glob import glob
+
+from pathlib import Path
 from hashlib import md5
 
 from PIL import Image
@@ -45,44 +46,42 @@ RANDOM_SLEEP_LOW = 1  # low (in sec) for random sleep between page loads
 RANDOM_SLEEP_HIGH = 7  # high (in sec) for random sleep between page loads
 logger = logging.getLogger("openwpm")
 
-url_dict = {}
-
 def bot_mitigation(webdriver, load_anchors):
     """performs three optional commands for bot-detection
     mitigation when getting a site"""
 
-    global url_dict
+    url_dict = {}
 
     if (load_anchors):
         # This will come later on
         pass
 
     # bot mitigation 1: move the randomly around a number of times
-    # window_size = webdriver.get_window_size()
-    # num_moves = 0
-    # num_fails = 0
-    # while num_moves < NUM_MOUSE_MOVES + 1 and num_fails < NUM_MOUSE_MOVES:
-    #     try:
-    #         if num_moves == 0:  # move to the center of the screen
-    #             x = int(round(window_size["height"] / 2))
-    #             y = int(round(window_size["width"] / 2))
-    #         else:  # move a random amount in some direction
-    #             move_max = random.randint(0, 500)
-    #             x = random.randint(-move_max, move_max)
-    #             y = random.randint(-move_max, move_max)
-    #         action = ActionChains(webdriver)
-    #         action.move_by_offset(x, y)
-    #         action.perform()
-    #         num_moves += 1
-    #     except MoveTargetOutOfBoundsException:
-    #         num_fails += 1
-    #         pass
+    window_size = webdriver.get_window_size()
+    num_moves = 0
+    num_fails = 0
+    while num_moves < NUM_MOUSE_MOVES + 1 and num_fails < NUM_MOUSE_MOVES:
+        try:
+            if num_moves == 0:  # move to the center of the screen
+                x = int(round(window_size["height"] / 2))
+                y = int(round(window_size["width"] / 2))
+            else:  # move a random amount in some direction
+                move_max = random.randint(0, 500)
+                x = random.randint(-move_max, move_max)
+                y = random.randint(-move_max, move_max)
+            action = ActionChains(webdriver)
+            action.move_by_offset(x, y)
+            action.perform()
+            num_moves += 1
+        except MoveTargetOutOfBoundsException:
+            num_fails += 1
+            pass
 
-    # # bot mitigation 2: scroll in random intervals down page
-    # scroll_down(webdriver)
+    # bot mitigation 2: scroll in random intervals down page
+    scroll_down(webdriver)
 
-    # # bot mitigation 3: randomly wait so page visits happen with irregularity
-    # time.sleep(random.randrange(RANDOM_SLEEP_LOW, RANDOM_SLEEP_HIGH))
+    # bot mitigation 3: randomly wait so page visits happen with irregularity
+    time.sleep(random.randrange(RANDOM_SLEEP_LOW, RANDOM_SLEEP_HIGH))
 
     n_atags_to_open = random.randint(5, 10)
     orig_anchor_tags = webdriver.find_elements_by_tag_name('a')
@@ -106,7 +105,7 @@ def bot_mitigation(webdriver, load_anchors):
             if (element_domain == parent_domain):
                 filtered_anchor_tags.append(anchor_tag)
         except Exception as e:
-            print('Error for element url: '+element_url)
+            print('Error while reading one element.')
     
     anchor_tags = filtered_anchor_tags
 
@@ -153,7 +152,9 @@ def bot_mitigation(webdriver, load_anchors):
             except Exception as ex:
                 print('limit reached: ', str(ex))
         i += 1
-    with open('urls.json', 'w') as f:
+        
+    Path(f"urls/{parent_domain}").mkdir(parents=True, exist_ok=True)
+    with open(f"urls/{parent_domain}/urls.json", 'w') as f:
         json.dump(url_dict, f)
 
     time.sleep(5)

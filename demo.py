@@ -12,7 +12,7 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 # The list of sites that we wish to crawl
-NUM_BROWSERS = 1
+NUM_BROWSERS = 32
 
 df = pd.read_csv('10k_sites.csv')
 
@@ -59,7 +59,7 @@ with TaskManager(
     None,
 ) as manager:
     # Visits the sites
-    for index, site in enumerate(tqdm(sites)):
+    for site in tqdm(sites):
 
         def callback(success: bool, val: str = site) -> None:
             print(
@@ -69,8 +69,8 @@ with TaskManager(
         # Parallelize sites over all number of browsers set above.
         command_sequence = CommandSequence(
             site,
-            site_rank=index,
             callback=callback,
+            reset=True,
         )
 
         # Start by visiting the page
