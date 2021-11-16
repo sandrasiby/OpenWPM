@@ -96,4 +96,9 @@ Extension/firefox/openwpm.xpi
 Extension/firefox/src/content.js
 Extension/firefox/src/feature.js
 
+# csv files
+sites.csv
+# ephemeral folders
 datadir
+urls
+

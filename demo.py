@@ -5,18 +5,19 @@ from openwpm.command_sequence import CommandSequence
 from openwpm.commands.browser_commands import GetCommand
 from openwpm.config import BrowserParams, ManagerParams
 from openwpm.storage.sql_provider import SQLiteStorageProvider
+from openwpm.storage.leveldb import LevelDbProvider
 from openwpm.task_manager import TaskManager
-
-import pandas as pd
 
 from tqdm.auto import tqdm
 
+import pandas as pd
+
 # The list of sites that we wish to crawl
-NUM_BROWSERS = 32
+NUM_BROWSERS = 1
 
-df = pd.read_csv('10k_sites.csv')
+df = pd.read_csv('sites.csv')
 
-sites = df.new_url.tolist()
+sites  = df[:20]['url'].tolist()
 
 # Loads the default ManagerParams
 # and NUM_BROWSERS copies of the default BrowserParams
@@ -26,20 +27,24 @@ browser_params = [BrowserParams(display_mode="headless") for _ in range(NUM_BROW
 
 # Update browser configuration (use this for per-browser settings)
 for browser_param in browser_params:
-    # # Record HTTP Requests and Responses
-    # browser_param.http_instrument = True
-    # # Record cookie changes
-    # browser_param.cookie_instrument = True
-    # # Record Navigations
-    # browser_param.navigation_instrument = True
-
-    browser_param.bot_mitigation = True
-    # # Record JS Web API calls
-    # browser_param.js_instrument = True
-    # # Record the callstack of all WebRequests made
-    # browser_param.callstack_instrument = True
-    # # Record DNS resolution
-    # browser_param.dns_instrument = True
+    # Record HTTP Requests and Responses
+    browser_param.http_instrument = True
+    # Record cookie changes
+    browser_param.cookie_instrument = True
+    # Record Navigations
+    browser_param.navigation_instrument = True
+    # Record JS Web API calls
+    browser_param.js_instrument = True
+    # Record the callstack of all WebRequests made
+    browser_param.callstack_instrument = True
+    # Record DNS resolution
+    browser_param.dns_instrument = True
+    # save the javascript files
+    browser_param.save_content = "script"
+    # allow third party cookies
+    browser_param.tp_cookies = 'never'
+    # Prevent any response by server due to bot detection
+    browser_param.bot_mitigation  = True
 
 # Update TaskManager configuration (use this for crawl-wide settings)
 manager_params.data_directory = Path("./datadir/")
@@ -56,10 +61,10 @@ with TaskManager(
     manager_params,
     browser_params,
     SQLiteStorageProvider(Path("./datadir/crawl-data.sqlite")),
-    None,
+    LevelDbProvider(Path("./datadir/content.ldb")),
 ) as manager:
     # Visits the sites
-    for site in tqdm(sites):
+    for index, site in enumerate(tqdm(sites)):
 
         def callback(success: bool, val: str = site) -> None:
             print(
@@ -69,8 +74,8 @@ with TaskManager(
         # Parallelize sites over all number of browsers set above.
         command_sequence = CommandSequence(
             site,
+            site_rank=index,
             callback=callback,
-            reset=True,
         )
 
         # Start by visiting the page
