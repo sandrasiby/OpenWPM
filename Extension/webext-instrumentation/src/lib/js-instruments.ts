@@ -698,8 +698,13 @@ export function getInstrumentJS(eventId: string, sendMessagesToLogger) {
           if (originalSetter) {
             // if accessor property
             returnValue = originalSetter.call(this, value);
-            if (this.getAttribute("openwpm")) {
-                attributes = this.attributes;
+            try {
+              if (this.getAttribute("openwpm")) {
+                  attributes = this.attributes;
+              }
+            } catch (error) {
+              console.warn("Error in getting openwpm attribute");
+              attributes = "";
             }
           } else if ("value" in propDesc) {
             inLog = true;
