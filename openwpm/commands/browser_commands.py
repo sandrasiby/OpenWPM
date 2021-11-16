@@ -5,8 +5,11 @@ import os
 import random
 import sys
 import time
+import tldextract
 import traceback
 from glob import glob
+
+from pathlib import Path
 from hashlib import md5
 
 from PIL import Image
@@ -17,6 +20,7 @@ from selenium.common.exceptions import (
 )
 from selenium.webdriver import Firefox
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -28,9 +32,13 @@ from .utils.webdriver_utils import (
     execute_script_with_retry,
     get_intra_links,
     is_displayed,
+    parse_neterror,
     scroll_down,
     wait_until_loaded,
+    scroll_to_element,
+    move_to_element,
 )
+
 
 # Constants for bot mitigation
 NUM_MOUSE_MOVES = 10  # Times to randomly move the mouse
@@ -38,10 +46,15 @@ RANDOM_SLEEP_LOW = 1  # low (in sec) for random sleep between page loads
 RANDOM_SLEEP_HIGH = 7  # high (in sec) for random sleep between page loads
 logger = logging.getLogger("openwpm")
 
-
-def bot_mitigation(webdriver):
+def bot_mitigation(webdriver, load_anchors):
     """performs three optional commands for bot-detection
     mitigation when getting a site"""
+
+    url_dict = {}
+
+    if (load_anchors):
+        # This will come later on
+        pass
 
     # bot mitigation 1: move the randomly around a number of times
     window_size = webdriver.get_window_size()
@@ -69,6 +82,83 @@ def bot_mitigation(webdriver):
 
     # bot mitigation 3: randomly wait so page visits happen with irregularity
     time.sleep(random.randrange(RANDOM_SLEEP_LOW, RANDOM_SLEEP_HIGH))
+
+    n_atags_to_open = random.randint(5, 10)
+    orig_anchor_tags = webdriver.find_elements_by_tag_name('a')
+    anchor_tags = []
+    if len(orig_anchor_tags) > n_atags_to_open:
+        anchor_tags = random.sample(orig_anchor_tags, n_atags_to_open)
+    else:
+        anchor_tags = orig_anchor_tags
+
+    parent_url = webdriver.current_url
+    parent_domain = tldextract.extract(parent_url)
+    parent_domain = parent_domain.domain + "." + parent_domain.suffix
+
+    filtered_anchor_tags = []
+
+    for anchor_tag in anchor_tags:
+        element_url = anchor_tag.get_attribute("href")
+        try:
+            element_domain = tldextract.extract(element_url)
+            element_domain = element_domain.domain + "." + element_domain.suffix
+            if (element_domain == parent_domain):
+                filtered_anchor_tags.append(anchor_tag)
+        except Exception as e:
+            print('Error while reading one element.')
+    
+    anchor_tags = filtered_anchor_tags
+
+
+    i = 0
+    while (i < len(anchor_tags)):
+        try:
+            element = anchor_tags[i]
+            if parent_url not in url_dict:
+                url_dict[parent_url] = []
+            
+            url_dict[parent_url].append(element.get_attribute("href"))
+            # # elm = BeautifulSoup(element,'html.parser')
+            # #href = webdriver.execute_script("return arguments[0].href", element)
+            # #webdriver.execute_script("""arguments[0].dispatchEvent(new MouseEvent("click", {"shiftKey": true}));""",element)
+            # # href = elm.href
+            # # print('href', href)
+            # # webdriver_wait = WebDriverWait(webdriver, 2)
+
+            # # element = webdriver_wait.until(EC.element_to_be_clickable(webdriver.find_elements_by_xpath('//a[@href="'+href+'"]')[0]))
+
+            # scroll_to_element(webdriver, element)
+            # move_to_element(webdriver, element)
+
+            # if not(element.is_enabled() and element.is_displayed()):
+            #     raise Exception('Element is not enabled and displayed')
+            # action = ActionChains(webdriver)
+            # action.key_down(Keys.SHIFT)
+            # action.click(element)
+            # action.key_up(Keys.SHIFT)
+            # # action.key_down(Keys.CONTROL)
+            # # action.key_down(Keys.ENTER)
+            # # action.key_up(Keys.ENTER)
+            # # action.key_up(Keys.CONTROL)
+            # action.perform()
+            # print(i, 'anchor tag clicked')
+            # time.sleep(1)
+        except Exception as e:
+            print('unable to click anchor tag: ', str(e))
+            try:
+                if len(orig_anchor_tags) > n_atags_to_open:
+                    anchor_tags.append(random.choice(
+                        [anchor_tag for anchor_tag in orig_anchor_tags if anchor_tag not in anchor_tags]))
+            except Exception as ex:
+                print('limit reached: ', str(ex))
+        i += 1
+        
+    Path(f"urls/{parent_domain}").mkdir(parents=True, exist_ok=True)
+    with open(f"urls/{parent_domain}/urls.json", 'w') as f:
+        json.dump(url_dict, f)
+
+    time.sleep(5)
+
 
 
 def close_other_windows(webdriver):
@@ -118,9 +208,10 @@ class GetCommand(BaseCommand):
     goes to <url> using the given <webdriver> instance
     """
 
-    def __init__(self, url, sleep):
+    def __init__(self, url, sleep, load_anchors=False):
         self.url = url
         self.sleep = sleep
+        self.load_anchors=load_anchors
 
     def __repr__(self):
         return "GetCommand({},{})".format(self.url, self.sleep)
@@ -158,14 +249,15 @@ class GetCommand(BaseCommand):
         close_other_windows(webdriver)
 
         if browser_params.bot_mitigation:
-            bot_mitigation(webdriver)
+            bot_mitigation(webdriver, self.load_anchors)
 
 
 class BrowseCommand(BaseCommand):
-    def __init__(self, url, num_links, sleep):
+    def __init__(self, url, num_links, sleep, load_anchors=False):
         self.url = url
         self.num_links = num_links
         self.sleep = sleep
+        self.load_anchors = load_anchors
 
     def __repr__(self):
         return "BrowseCommand({},{},{})".format(self.url, self.num_links, self.sleep)
@@ -212,7 +304,7 @@ class BrowseCommand(BaseCommand):
                 wait_until_loaded(webdriver, 300)
                 time.sleep(max(1, self.sleep))
                 if browser_params.bot_mitigation:
-                    bot_mitigation(webdriver)
+                    bot_mitigation(webdriver, self.load_anchors)
                 webdriver.back()
                 wait_until_loaded(webdriver, 300)
             except Exception as e:
@@ -356,7 +448,8 @@ class ScreenshotFullPageCommand(BaseCommand):
 
                 # Scroll down to bottom of previous viewport
                 try:
-                    webdriver.execute_script("window.scrollBy(0, window.innerHeight)")
+                    webdriver.execute_script(
+                        "window.scrollBy(0, window.innerHeight)")
                 except WebDriverException:
                     logger.info(
                         "BROWSER %i: WebDriverException while scrolling, "
@@ -381,7 +474,8 @@ class ScreenshotFullPageCommand(BaseCommand):
             )
             return
 
-        _stitch_screenshot_parts(self.visit_id, self.browser_id, manager_params)
+        _stitch_screenshot_parts(
+            self.visit_id, self.browser_id, manager_params)
 
 
 class DumpPageSourceCommand(BaseCommand):
@@ -427,7 +521,6 @@ class RecursiveDumpPageSourceCommand(BaseCommand):
         manager_params,
         extension_socket,
     ):
-
         """Dump a compressed html tree for the current page visit"""
         if self.suffix != "":
             self.suffix = "-" + self.suffix
@@ -488,7 +581,6 @@ class FinalizeCommand(BaseCommand):
         manager_params,
         extension_socket,
     ):
-
         """Informs the extension that a visit is done"""
         tab_restart_browser(webdriver)
         # This doesn't immediately stop data saving from the current
