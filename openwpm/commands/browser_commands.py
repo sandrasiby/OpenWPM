@@ -113,23 +113,7 @@ def bot_mitigation(webdriver):
                 anchor_tags.append(anchor_tag)
     else:
         print('Not found')
-        sampled_anchor_tags = []
-        if len(orig_anchor_tags) > n_atags_to_open:
-            sampled_anchor_tags = random.sample(orig_anchor_tags, n_atags_to_open)
-        else:
-            sampled_anchor_tags = orig_anchor_tags
-        for anchor_tag in sampled_anchor_tags:
-            element_url = anchor_tag.get_attribute('href')
-            try:
-                element_domain = get_etldp1(element_url)
-                if (element_domain == parent_domain):
-                    anchor_tags.append(anchor_tag)
-                    url_dict[parent_domain].append(element_url)
-            except Exception as e:
-                print('Error while reading element.')
-        Path(f"urls/{parent_domain}").mkdir(parents=True, exist_ok=True)
-        with open(f"urls/{parent_domain}/urls.json", 'w') as f:
-            json.dump(url_dict, f)
+        return
 
     print(f'{len(anchor_tags)} anchor tags found.')
 

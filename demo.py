@@ -17,7 +17,7 @@ NUM_BROWSERS = 1
 
 df = pd.read_csv('sites.csv')
 
-sites  = df[:20]['url'].tolist()
+sites  = df['url'].tolist()
 
 # Loads the default ManagerParams
 # and NUM_BROWSERS copies of the default BrowserParams
