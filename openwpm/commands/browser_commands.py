@@ -2,15 +2,15 @@ import gzip
 import json
 import logging
 import os
+from posix import uname_result
 import random
 import sys
 import time
-import tldextract
 import traceback
 from glob import glob
-
-from pathlib import Path
 from hashlib import md5
+from pathlib import Path
+import tldextract
 
 from PIL import Image
 from selenium.common.exceptions import (
@@ -32,13 +32,11 @@ from .utils.webdriver_utils import (
     execute_script_with_retry,
     get_intra_links,
     is_displayed,
-    parse_neterror,
     scroll_down,
     wait_until_loaded,
     scroll_to_element,
     move_to_element,
 )
-
 
 # Constants for bot mitigation
 NUM_MOUSE_MOVES = 10  # Times to randomly move the mouse
@@ -89,13 +87,13 @@ def bot_mitigation(webdriver):
     for atag in orig_anchor_tags:
         if atag not in anchor_tags:
             anchor_tags.append(atag)
-    
+
     orig_anchor_tags = anchor_tags
     parent_domain = get_etldp1(webdriver.current_url)
 
     anchor_tags = []
 
-    url_dict = {} 
+    url_dict = {}
     url_dict[parent_domain] = []
 
     if os.path.exists(f'urls/{parent_domain}/urls.json'):
@@ -111,6 +109,9 @@ def bot_mitigation(webdriver):
             if element_url in urls:
                 print('found')
                 anchor_tags.append(anchor_tag)
+        if len(anchor_tags) > len(orig_anchor_tags):
+            # select a random subset of the anchor tags equal to the number of original anchor tags
+            anchor_tags = random.sample(anchor_tags, len(orig_anchor_tags))
     else:
         print('Not found')
         return
@@ -118,6 +119,7 @@ def bot_mitigation(webdriver):
     print(f'{len(anchor_tags)} anchor tags found.')
 
     i = 0
+    clicked = 1
     while (i < len(anchor_tags)):
         try:
             element = anchor_tags[i]
@@ -132,7 +134,8 @@ def bot_mitigation(webdriver):
             action.click(element)
             action.key_up(Keys.SHIFT)
             action.perform()
-            print(i, 'anchor tag clicked')
+            print(clicked, 'anchor tag(s) clicked')
+            clicked += 1
             time.sleep(1)
         except Exception as e:
             print('unable to click anchor tag: ', str(e))
