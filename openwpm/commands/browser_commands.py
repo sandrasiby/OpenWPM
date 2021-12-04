@@ -109,9 +109,9 @@ def bot_mitigation(webdriver):
             if element_url in urls:
                 print('found')
                 anchor_tags.append(anchor_tag)
-        if len(anchor_tags) > len(orig_anchor_tags):
+        if len(anchor_tags) > len(urls):
             # select a random subset of the anchor tags equal to the number of original anchor tags
-            anchor_tags = random.sample(anchor_tags, len(orig_anchor_tags))
+            anchor_tags = random.sample(anchor_tags, len(urls))
     else:
         print('Not found')
         return
