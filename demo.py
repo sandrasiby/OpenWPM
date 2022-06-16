@@ -5,6 +5,7 @@ from openwpm.command_sequence import CommandSequence
 from openwpm.commands.browser_commands import GetCommand
 from openwpm.config import BrowserParams, ManagerParams
 from openwpm.storage.sql_provider import SQLiteStorageProvider
+from openwpm.storage.leveldb import LevelDbProvider
 from openwpm.task_manager import TaskManager
 
 # The list of sites that we wish to crawl
@@ -35,6 +36,9 @@ for browser_param in browser_params:
     browser_param.callstack_instrument = True
     # Record DNS resolution
     browser_param.dns_instrument = True
+    # save the javascript files
+    browser_param.save_content = "script"
+
 
 # Update TaskManager configuration (use this for crawl-wide settings)
 manager_params.data_directory = Path("./datadir/")
@@ -51,7 +55,7 @@ with TaskManager(
     manager_params,
     browser_params,
     SQLiteStorageProvider(Path("./datadir/crawl-data.sqlite")),
-    None,
+    LevelDbProvider(Path("./datadir/content.ldb")),
 ) as manager:
     # Visits the sites
     for index, site in enumerate(sites):

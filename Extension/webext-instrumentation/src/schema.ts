@@ -141,6 +141,7 @@ export interface JavascriptOperation {
   symbol?: string;
   operation?: string;
   value?: string;
+  attributes?: string;
   arguments?: string;
   time_stamp: DateTime;
 }
