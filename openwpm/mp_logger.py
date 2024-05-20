@@ -10,7 +10,6 @@ import threading
 import time
 from pathlib import Path
 from queue import Empty as EmptyQueue
-from typing import Optional
 
 import dill
 import sentry_sdk
@@ -101,7 +100,7 @@ class MPLogger(object):
     def __init__(
         self,
         log_file: Path,
-        crawl_reference: Optional[str] = None,
+        crawl_reference: str = None,
         log_level_console=logging.INFO,
         log_level_file=logging.DEBUG,
         log_level_sentry_breadcrumb=logging.DEBUG,

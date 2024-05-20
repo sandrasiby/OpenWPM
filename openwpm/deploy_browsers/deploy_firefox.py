@@ -1,7 +1,7 @@
 import json
 import logging
 import os.path
-import subprocess
+import socket
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -10,14 +10,12 @@ from easyprocess import EasyProcessError
 from multiprocess import Queue
 from pyvirtualdisplay import Display
 from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
 
 from ..commands.profile_commands import load_profile
 from ..config import BrowserParamsInternal, ConfigEncoder, ManagerParamsInternal
 from ..utilities.platform_utils import get_firefox_binary_path
 from . import configure_firefox
-from .selenium_firefox import FirefoxLogInterceptor
+from .selenium_firefox import FirefoxBinary, FirefoxLogInterceptor, Options
 
 DEFAULT_SCREEN_RES = (1366, 768)
 logger = logging.getLogger("openwpm")
@@ -36,9 +34,7 @@ def deploy_firefox(
 
     root_dir = os.path.dirname(__file__)  # directory of this file
 
-    browser_profile_path = Path(
-        tempfile.mkdtemp(prefix="firefox_profile_", dir=browser_params.tmp_profile_dir)
-    )
+    browser_profile_path = Path(tempfile.mkdtemp(prefix="firefox_profile_"))
     status_queue.put(("STATUS", "Profile Created", browser_profile_path))
 
     # Use Options instead of FirefoxProfile to set preferences since the
@@ -48,9 +44,10 @@ def deploy_firefox(
     # Set a custom profile that is used in-place and is not deleted by geckodriver.
     # https://firefox-source-docs.mozilla.org/testing/geckodriver/CrashReports.html
     # Using FirefoxProfile breaks stateful crawling:
-    # https://github.com/openwpm/OpenWPM/issues/423#issuecomment-521018093
+    # https://github.com/mozilla/OpenWPM/issues/423#issuecomment-521018093
     fo.add_argument("-profile")
     fo.add_argument(str(browser_profile_path))
+
     assert browser_params.browser_id is not None
     if browser_params.seed_tar and not crash_recovery:
         logger.info(
@@ -79,7 +76,7 @@ def deploy_firefox(
     display_port = None
     display = None
     if display_mode == "headless":
-        fo.add_argument("--headless")
+        fo.headless = True
         fo.add_argument("--width={}".format(DEFAULT_SCREEN_RES[0]))
         fo.add_argument("--height={}".format(DEFAULT_SCREEN_RES[1]))
     if display_mode == "xvfb":
@@ -103,9 +100,9 @@ def deploy_firefox(
         extension_config: Dict[str, Any] = dict()
         extension_config.update(browser_params.to_dict())
         extension_config["logger_address"] = manager_params.logger_address
-        extension_config["storage_controller_address"] = (
-            manager_params.storage_controller_address
-        )
+        extension_config[
+            "storage_controller_address"
+        ] = manager_params.storage_controller_address
         extension_config["testing"] = manager_params.testing
         ext_config_file = browser_profile_path / "browser_params.json"
         with open(ext_config_file, "w") as f:
@@ -118,16 +115,33 @@ def deploy_firefox(
         # TODO restore detailed logging
         # fo.set_preference("extensions.@openwpm.sdk.console.logLevel", "all")
 
+    # Geckodriver currently places the user.js file in the wrong profile
+    # directory, so we have to create it manually here.
+    # TODO: See https://github.com/mozilla/OpenWPM/issues/867 for when
+    # to remove this workaround.
+    # Load existing preferences from the profile's user.js file
+    prefs = configure_firefox.load_existing_prefs(browser_profile_path)
+    # Load default geckodriver preferences
+    prefs.update(configure_firefox.DEFAULT_GECKODRIVER_PREFS)
+    # Pick an available port for Marionette (https://stackoverflow.com/a/2838309)
+    # This has a race condition, as another process may get the port
+    # before Marionette, but we don't expect it to happen often
+    s = socket.socket()
+    s.bind(("", 0))
+    marionette_port = s.getsockname()[1]
+    s.close()
+    prefs["marionette.port"] = marionette_port
+
     # Configure privacy settings
-    configure_firefox.privacy(browser_params, fo)
+    configure_firefox.privacy(browser_params, prefs)
 
     # Set various prefs to improve speed and eliminate traffic to Mozilla
-    configure_firefox.optimize_prefs(fo)
+    configure_firefox.optimize_prefs(prefs)
 
     # Intercept logging at the Selenium level and redirect it to the
     # main logger.
-    webdriver_interceptor = FirefoxLogInterceptor(browser_params.browser_id)
-    webdriver_interceptor.start()
+    interceptor = FirefoxLogInterceptor(browser_params.browser_id)
+    interceptor.start()
 
     # Set custom prefs. These are set after all of the default prefs to allow
     # our defaults to be overwritten.
@@ -136,27 +150,28 @@ def deploy_firefox(
             "BROWSER %i: Setting custom preference: %s = %s"
             % (browser_params.browser_id, name, value)
         )
-        fo.set_preference(name, value)
+        prefs[name] = value
+
+    # Write all preferences to the profile's user.js file
+    configure_firefox.save_prefs_to_profile(prefs, browser_profile_path)
 
     # Launch the webdriver
     status_queue.put(("STATUS", "Launch Attempted", None))
-
-    fo.binary_location = firefox_binary_path
-    geckodriver_path = subprocess.check_output(
-        "which geckodriver", encoding="utf-8", shell=True
-    ).strip()
+    fb = FirefoxBinary(firefox_path=firefox_binary_path)
     driver = webdriver.Firefox(
+        firefox_binary=fb,
         options=fo,
-        service=Service(
-            executable_path=geckodriver_path,
-            log_output=open(webdriver_interceptor.fifo, "w"),
-        ),
+        log_path=interceptor.fifo,
+        # TODO: See https://github.com/mozilla/OpenWPM/issues/867 for
+        # when to remove this
+        service_args=["--marionette-port", str(marionette_port)],
     )
 
     # Add extension
     if browser_params.extension_enabled:
+
         # Install extension
-        ext_loc = os.path.join(root_dir, "../../Extension/openwpm.xpi")
+        ext_loc = os.path.join(root_dir, "../../Extension/firefox/openwpm.xpi")
         ext_loc = os.path.normpath(ext_loc)
         driver.install_addon(ext_loc, temporary=True)
         logger.debug(
@@ -169,6 +184,8 @@ def deploy_firefox(
     # Get browser process pid
     if hasattr(driver, "service") and hasattr(driver.service, "process"):
         pid = driver.service.process.pid
+    elif hasattr(driver, "binary") and hasattr(driver.binary, "process"):
+        pid = driver.binary.process.pid
     else:
         raise RuntimeError("Unable to identify Firefox process ID.")
 

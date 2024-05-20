@@ -21,7 +21,7 @@ class LevelDbProvider(UnstructuredStorageProvider):
         self.ldb = plyvel.DB(
             str(self.db_path),
             create_if_missing=True,
-            write_buffer_size=128 * 10**6,
+            write_buffer_size=128 * 10 ** 6,
             compression="snappy",
         )
         self.content_batch = self.ldb.write_batch()
@@ -40,6 +40,7 @@ class LevelDbProvider(UnstructuredStorageProvider):
         blob: bytes,
         overwrite: bool = False,
     ) -> None:
+
         content_hash = str(filename).encode("ascii")
         if self.ldb.get(content_hash) is not None and not overwrite:
             return

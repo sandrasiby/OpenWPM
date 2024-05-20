@@ -11,17 +11,17 @@ from openwpm.utilities import db_utils
 from . import utilities
 
 expected_js_cookie = (
-    "added-or-changed",  # record_type
-    "explicit",  # change_cause
+    u"added-or-changed",  # record_type
+    u"explicit",  # change_cause
     0,  # is_http_only
     1,  # is_host_only
     0,  # is_session
-    "%s" % utilities.BASE_TEST_URL_DOMAIN,  # host
+    u"%s" % utilities.BASE_TEST_URL_DOMAIN,  # host
     0,  # is_secure
-    "test_cookie",  # name
-    "/",  # path
-    "Test-0123456789",  # value
-    "no_restriction",  # same_site
+    u"test_cookie",  # name
+    u"/",  # path
+    u"Test-0123456789",  # value
+    u"no_restriction",  # same_site
 )
 
 

@@ -1,19 +1,12 @@
 import os
-import time
 from datetime import datetime
 from pathlib import Path
 from sqlite3 import Row
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import pytest
-from selenium.webdriver import Firefox
-from selenium.webdriver.common.by import By
 
-from openwpm.command_sequence import CommandSequence
-from openwpm.commands.browser_commands import GetCommand
-from openwpm.commands.types import BaseCommand
 from openwpm.config import BrowserParams, ManagerParams
-from openwpm.socket_interface import ClientSocket
 from openwpm.utilities import db_utils
 
 from . import utilities
@@ -43,71 +36,71 @@ PROPERTIES = {
 }
 
 # Canvas Fingerprinting DB calls and property sets
-CANVAS_TEST_URL = "%s/canvas_fingerprinting.html" % utilities.BASE_TEST_URL
+CANVAS_TEST_URL = u"%s/canvas_fingerprinting.html" % utilities.BASE_TEST_URL
 
 CANVAS_CALLS = {
-    (CANVAS_TEST_URL, "CanvasRenderingContext2D.fillStyle", "set", "#f60", None),
+    (CANVAS_TEST_URL, u"CanvasRenderingContext2D.fillStyle", u"set", u"#f60", None),
     (
         CANVAS_TEST_URL,
-        "CanvasRenderingContext2D.textBaseline",
-        "set",
-        "alphabetic",
+        u"CanvasRenderingContext2D.textBaseline",
+        u"set",
+        u"alphabetic",
         None,
     ),
-    (CANVAS_TEST_URL, "CanvasRenderingContext2D.textBaseline", "set", "top", None),
-    (CANVAS_TEST_URL, "CanvasRenderingContext2D.font", "set", "14px 'Arial'", None),
-    (CANVAS_TEST_URL, "CanvasRenderingContext2D.fillStyle", "set", "#069", None),
+    (CANVAS_TEST_URL, u"CanvasRenderingContext2D.textBaseline", u"set", u"top", None),
+    (CANVAS_TEST_URL, u"CanvasRenderingContext2D.font", u"set", u"14px 'Arial'", None),
+    (CANVAS_TEST_URL, u"CanvasRenderingContext2D.fillStyle", u"set", u"#069", None),
     (
         CANVAS_TEST_URL,
-        "CanvasRenderingContext2D.fillStyle",
-        "set",
-        "rgba(102, 204, 0, 0.7)",
+        u"CanvasRenderingContext2D.fillStyle",
+        u"set",
+        u"rgba(102, 204, 0, 0.7)",
         None,
     ),
-    (CANVAS_TEST_URL, "HTMLCanvasElement.getContext", "call", "", '["2d"]'),
+    (CANVAS_TEST_URL, u"HTMLCanvasElement.getContext", u"call", u"", u'["2d"]'),
     (
         CANVAS_TEST_URL,
-        "CanvasRenderingContext2D.fillRect",
-        "call",
-        "",
-        "[125,1,62,20]",
+        u"CanvasRenderingContext2D.fillRect",
+        u"call",
+        u"",
+        u"[125,1,62,20]",
     ),
-    (CANVAS_TEST_URL, "HTMLCanvasElement.toDataURL", "call", "", None),
+    (CANVAS_TEST_URL, u"HTMLCanvasElement.toDataURL", u"call", u"", None),
     (
         CANVAS_TEST_URL,
-        "CanvasRenderingContext2D.fillText",
-        "call",
-        "",
-        '["BrowserLeaks,com <canvas> 1.0",4,17]',
+        u"CanvasRenderingContext2D.fillText",
+        u"call",
+        u"",
+        u'["BrowserLeaks,com <canvas> 1.0",4,17]',
     ),
     (
         CANVAS_TEST_URL,
-        "CanvasRenderingContext2D.fillText",
-        "call",
-        "",
-        '["BrowserLeaks,com <canvas> 1.0",2,15]',
+        u"CanvasRenderingContext2D.fillText",
+        u"call",
+        u"",
+        u'["BrowserLeaks,com <canvas> 1.0",2,15]',
     ),
 }
 
-WEBRTC_TEST_URL = "%s/webrtc_localip.html" % utilities.BASE_TEST_URL
+WEBRTC_TEST_URL = u"%s/webrtc_localip.html" % utilities.BASE_TEST_URL
 
 WEBRTC_CALLS = {
     (
         WEBRTC_TEST_URL,
-        "RTCPeerConnection.createOffer",
-        "call",
-        "",
-        '["FUNCTION","FUNCTION"]',
+        u"RTCPeerConnection.createOffer",
+        u"call",
+        u"",
+        u'["FUNCTION","FUNCTION"]',
     ),
-    (WEBRTC_TEST_URL, "RTCPeerConnection.createDataChannel", "call", "", '[""]'),
+    (WEBRTC_TEST_URL, u"RTCPeerConnection.createDataChannel", u"call", u"", u'[""]'),
     (
         WEBRTC_TEST_URL,
-        "RTCPeerConnection.createDataChannel",
-        "call",
-        "",
-        '["","{\\"reliable\\":false}"]',
+        u"RTCPeerConnection.createDataChannel",
+        u"call",
+        u"",
+        u'["","{\\"reliable\\":false}"]',
     ),
-    (WEBRTC_TEST_URL, "RTCPeerConnection.onicecandidate", "set", "FUNCTION", None),
+    (WEBRTC_TEST_URL, u"RTCPeerConnection.onicecandidate", u"set", u"FUNCTION", None),
 }
 
 # we expect these strings to be present in the WebRTC SDP
@@ -129,129 +122,129 @@ WEBRTC_SDP_OFFER_STRINGS = (
 
 # AudioContext and AudioNode symbols we expect from our test script
 AUDIO_SYMBOLS = {
-    "AudioContext.createOscillator",
-    "AudioContext.createAnalyser",
-    "AudioContext.createGain",
-    "AudioContext.createScriptProcessor",
-    "GainNode.gain",
-    "OscillatorNode.type",
-    "OscillatorNode.connect",
-    "AnalyserNode.connect",
-    "ScriptProcessorNode.connect",
-    "AudioContext.destination",
-    "GainNode.connect",
-    "ScriptProcessorNode.onaudioprocess",
-    "OscillatorNode.start",
-    "AnalyserNode.frequencyBinCount",
-    "AnalyserNode.getFloatFrequencyData",
-    "AnalyserNode.disconnect",
-    "ScriptProcessorNode.disconnect",
-    "GainNode.disconnect",
-    "OscillatorNode.stop",
+    u"AudioContext.createOscillator",
+    u"AudioContext.createAnalyser",
+    u"AudioContext.createGain",
+    u"AudioContext.createScriptProcessor",
+    u"GainNode.gain",
+    u"OscillatorNode.type",
+    u"OscillatorNode.connect",
+    u"AnalyserNode.connect",
+    u"ScriptProcessorNode.connect",
+    u"AudioContext.destination",
+    u"GainNode.connect",
+    u"ScriptProcessorNode.onaudioprocess",
+    u"OscillatorNode.start",
+    u"AnalyserNode.frequencyBinCount",
+    u"AnalyserNode.getFloatFrequencyData",
+    u"AnalyserNode.disconnect",
+    u"ScriptProcessorNode.disconnect",
+    u"GainNode.disconnect",
+    u"OscillatorNode.stop",
 }
 
-JS_STACK_TEST_URL = "%s/js_call_stack.html" % utilities.BASE_TEST_URL
-JS_STACK_TEST_SCRIPT_URL = "%s/stack.js" % utilities.BASE_TEST_URL
+JS_STACK_TEST_URL = u"%s/js_call_stack.html" % utilities.BASE_TEST_URL
+JS_STACK_TEST_SCRIPT_URL = u"%s/stack.js" % utilities.BASE_TEST_URL
 
 JS_STACK_CALLS = {
     (
         JS_STACK_TEST_URL,
-        "1",
-        "1",
-        "",
-        "line 10 > eval",
-        "",
-        "window.navigator.appName",
-        "get",
+        u"1",
+        u"1",
+        u"",
+        u"line 10 > eval",
+        u"",
+        u"window.navigator.appName",
+        u"get",
     ),
     (
         JS_STACK_TEST_SCRIPT_URL,
-        "3",
-        "17",
-        "js_check_navigator",
-        "",
-        "",
-        "window.navigator.userAgent",
-        "get",
+        u"3",
+        u"5",
+        u"js_check_navigator",
+        u"",
+        u"",
+        u"window.navigator.userAgent",
+        u"get",
     ),
     (
         JS_STACK_TEST_SCRIPT_URL,
-        "1",
-        "1",
-        "",
-        "line 4 > eval",
-        "",
-        "window.navigator.platform",
-        "get",
+        u"1",
+        u"1",
+        u"",
+        u"line 4 > eval",
+        u"",
+        u"window.navigator.platform",
+        u"get",
     ),
     (
         JS_STACK_TEST_SCRIPT_URL,
-        "1",
-        "1",
-        "",
-        "line 11 > eval",
-        "",
-        "window.navigator.buildID",
-        "get",
+        u"1",
+        u"1",
+        u"",
+        u"line 11 > eval",
+        u"",
+        u"window.navigator.buildID",
+        u"get",
     ),
     (
         JS_STACK_TEST_SCRIPT_URL,
-        "3",
-        "1",
-        "anonymous",
-        "line 14 > Function",
-        "",
-        "window.navigator.appVersion",
-        "get",
+        u"3",
+        u"1",
+        u"anonymous",
+        u"line 14 > Function",
+        u"",
+        u"window.navigator.appVersion",
+        u"get",
     ),
     (
         JS_STACK_TEST_URL,
-        "7",
-        "21",
-        "check_navigator",
-        "",
-        "",
-        "window.navigator.userAgent",
-        "get",
+        u"7",
+        u"9",
+        u"check_navigator",
+        u"",
+        u"",
+        u"window.navigator.userAgent",
+        u"get",
     ),
     (
         JS_STACK_TEST_URL,
-        "1",
-        "1",
-        "",
-        "line 8 > eval",
-        "",
-        "window.navigator.appCodeName",
-        "get",
+        u"1",
+        u"1",
+        u"",
+        u"line 8 > eval",
+        u"",
+        u"window.navigator.appCodeName",
+        u"get",
     ),
 }
 
-JS_COOKIE_TEST_URL = "%s/js_cookie.html" % utilities.BASE_TEST_URL
+JS_COOKIE_TEST_URL = u"%s/js_cookie.html" % utilities.BASE_TEST_URL
 
 DOCUMENT_COOKIE_READ = (
     JS_COOKIE_TEST_URL,
-    "8",
-    "21",
-    "set_cookie",
-    "",
-    "set_cookie@" + JS_COOKIE_TEST_URL + ":8:21"
+    u"8",
+    u"9",
+    u"set_cookie",
+    u"",
+    u"set_cookie@" + JS_COOKIE_TEST_URL + ":8:9"
     "\nonload@" + JS_COOKIE_TEST_URL + ":1:1",
-    "window.document.cookie",
-    "get",
-    "test_cookie=Test-0123456789",
+    u"window.document.cookie",
+    u"get",
+    u"test_cookie=Test-0123456789",
 )
 
 DOCUMENT_COOKIE_WRITE = (
     JS_COOKIE_TEST_URL,
-    "7",
-    "9",
-    "set_cookie",
-    "",
-    "set_cookie@" + JS_COOKIE_TEST_URL + ":7:9"
+    u"7",
+    u"9",
+    u"set_cookie",
+    u"",
+    u"set_cookie@" + JS_COOKIE_TEST_URL + ":7:9"
     "\nonload@" + JS_COOKIE_TEST_URL + ":1:1",
-    "window.document.cookie",
-    "set",
-    "test_cookie=Test-0123456789; " "expires=Tue, 31 Dec 2030 00:00:00 UTC; path=/",
+    u"window.document.cookie",
+    u"set",
+    u"test_cookie=Test-0123456789; " "expires=Tue, 31 Dec 2030 00:00:00 UTC; path=/",
 )
 
 DOCUMENT_COOKIE_READ_WRITE = {DOCUMENT_COOKIE_READ, DOCUMENT_COOKIE_WRITE}
@@ -259,7 +252,7 @@ DOCUMENT_COOKIE_READ_WRITE = {DOCUMENT_COOKIE_READ, DOCUMENT_COOKIE_WRITE}
 
 class TestExtension(OpenWPMTest):
     def get_config(
-        self, data_dir: Optional[Path] = None
+        self, data_dir: Path = None
     ) -> Tuple[ManagerParams, List[BrowserParams]]:
         manager_params, browser_params = self.get_test_config(data_dir)
         browser_params[0].js_instrument = True
@@ -353,6 +346,19 @@ class TestExtension(OpenWPMTest):
                 observed_rows.add(item)
         assert WEBRTC_CALLS == observed_rows
 
+    @pytest.mark.skipif(
+        "CI" in os.environ and os.environ["CI"] == "true",
+        reason="Flaky on CI",
+    )
+    def test_audio_fingerprinting(self):
+        db = self.visit("/audio_fingerprinting.html")
+        # Check that all calls and methods are recorded
+        rows = db_utils.get_javascript_entries(db)
+        observed_symbols = set()
+        for item in rows:
+            observed_symbols.add(item[1])
+        assert AUDIO_SYMBOLS == observed_symbols
+
     def test_js_call_stack(self):
         db = self.visit("/js_call_stack.html")
         # Check that all stack info are recorded
@@ -403,41 +409,3 @@ class TestExtension(OpenWPMTest):
             )
             captured_cookie_calls.add(item)
         assert captured_cookie_calls == DOCUMENT_COOKIE_READ_WRITE
-
-
-class ClickButtonCommand(BaseCommand):
-    def execute(
-        self,
-        webdriver: Firefox,
-        browser_params: BrowserParams,
-        manager_params: ManagerParams,
-        extension_socket: ClientSocket,
-    ) -> None:
-        button = webdriver.find_element(By.ID, "play")
-        button.click()
-        time.sleep(5)
-
-
-@pytest.mark.skipif(
-    "CI" in os.environ and os.environ["CI"] == "true",
-    reason="Flaky on CI",
-)
-def test_audio_fingerprinting(default_params, task_manager_creator):
-    for browser_params in default_params[1]:
-        browser_params.js_instrument = True
-
-    tm, db = task_manager_creator(default_params)
-    cs = CommandSequence("/audio_fingerprinting.html")
-    cs.append_command(
-        GetCommand(utilities.BASE_TEST_URL + "/audio_fingerprinting.html", 0)
-    )
-    cs.append_command(ClickButtonCommand())
-    tm.execute_command_sequence(cs)
-
-    tm.close()
-    # Check that all calls and methods are recorded
-    rows = db_utils.get_javascript_entries(db)
-    observed_symbols = set()
-    for item in rows:
-        observed_symbols.add(item[1])
-    assert AUDIO_SYMBOLS == observed_symbols

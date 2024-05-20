@@ -70,6 +70,7 @@ class S3UnstructuredProvider(UnstructuredStorageProvider):
         self.logger = logging.getLogger("openwpm")
 
     async def init(self) -> None:
+        await super(S3UnstructuredProvider, self).init()
         self.file_system = S3FileSystem(**self.kwargs)
 
     async def store_blob(

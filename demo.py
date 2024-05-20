@@ -1,8 +1,4 @@
-import argparse
 from pathlib import Path
-from typing import Literal
-
-import tranco
 
 from custom_command import LinkCountingCommand
 from openwpm.command_sequence import CommandSequence
@@ -16,33 +12,18 @@ from tqdm.auto import tqdm
 
 import pandas as pd
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--tranco", action="store_true", default=False)
-parser.add_argument("--headless", action="store_true", default=False),
+# The list of sites that we wish to crawl
+NUM_BROWSERS = 1
 
-args = parser.parse_args()
+df = pd.read_csv('sites.csv')
 
-
-df = pd.read_csv("sites.csv")
-
-sites = df["url"].tolist()
-if args.tranco:
-    # Load the latest tranco list. See https://tranco-list.eu/
-    print("Loading tranco top sites list...")
-    t = tranco.Tranco(cache=True, cache_dir=".tranco")
-    latest_list = t.list()
-    sites = ["http://" + x for x in latest_list.top(10)]
-
-
-display_mode: Literal["native", "headless", "xvfb"] = "native"
-if args.headless:
-    display_mode = "headless"
+sites  = df['url'].tolist()
 
 # Loads the default ManagerParams
 # and NUM_BROWSERS copies of the default BrowserParams
-NUM_BROWSERS = 2
+
 manager_params = ManagerParams(num_browsers=NUM_BROWSERS)
-browser_params = [BrowserParams(display_mode=display_mode) for _ in range(NUM_BROWSERS)]
+browser_params = [BrowserParams(display_mode="headless") for _ in range(NUM_BROWSERS)]
 
 # Update browser configuration (use this for per-browser settings)
 for browser_param in browser_params:
@@ -55,18 +36,15 @@ for browser_param in browser_params:
     # Record JS Web API calls
     browser_param.js_instrument = True
     # Record the callstack of all WebRequests made
-    # browser_param.callstack_instrument = True
+    browser_param.callstack_instrument = True
     # Record DNS resolution
     browser_param.dns_instrument = True
-    # Set this value as appropriate for the size of your temp directory
-    # if you are running out of space
-    browser_param.maximum_profile_size = 50 * (10**20)  # 50 MB = 50 * 2^20 Bytes
     # save the javascript files
     browser_param.save_content = "script"
     # allow third party cookies
-    browser_param.tp_cookies = "never"
+    browser_param.tp_cookies = 'never'
     # Prevent any response by server due to bot detection
-    browser_param.bot_mitigation = True
+    browser_param.bot_mitigation  = True
 
 # Update TaskManager configuration (use this for crawl-wide settings)
 manager_params.data_directory = Path("./datadir/")

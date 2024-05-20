@@ -1,5 +1,6 @@
 # Contributing <!-- omit in toc -->
 
+
 - [Setting up a dev enviroment](#setting-up-a-dev-enviroment)
 - [General Hints and Guidelines](#general-hints-and-guidelines)
   - [Avoid failing tests for PRs caused by formatting/linting issues](#avoid-failing-tests-for-prs-caused-by-formattinglinting-issues)
@@ -11,7 +12,6 @@
   - [Updating schema docs](#updating-schema-docs)
 
 ## Setting up a dev enviroment
-
 Dev dependencies are installed by using the main `environment.yaml` (which
 is used by `./install.sh` script).
 
@@ -35,12 +35,12 @@ the project as well as the one you plan to change fundamentally.
 
 ### Editing instrumentation
 
-The instrumentation extension is included in `/Extension/`.
+The instrumentation extension is included in `/Extension/firefox/`.
 The instrumentation itself (used by the above extension) is included in
 `/Extension/webext-instrumentation/`.
 Any edits within these directories will require the extension to be re-built to produce
 a new `openwpm.xpi` with your updates. You can use `./scripts/build-extension.sh` to do this,
-or you can run `npm run build` from `/Extension/`.
+or you can run `npm run build` from `Extension/firefox/`.
 
 ### Debugging the platform
 
@@ -52,15 +52,13 @@ continuing the crawl). We recommend using
 This utility allows manual debugging of the extension instrumentation with or
 without Selenium enabled, as well as makes it easy to launch a Selenium
 instance (without any instrumentation)
-
-- `./scripts/build-extension.sh`
-- `python -m test.manual_test` builds the current extension directory
+* `./scripts/build-extension.sh`
+* `python -m test.manual_test` builds the current extension directory
   and launches a Firefox instance with it.
-- `python -m test.manual_test --selenium` launches a Firefox Selenium instance
+* `python -m test.manual_test --selenium` launches a Firefox Selenium instance
   after automatically rebuilding `openwpm.xpi`. The script then
   drops into an `ipython` shell where the webdriver instance is available
   through variable `driver`.
-
 * `python -m test.manual_test --selenium --no_extension` launches a Firefox Selenium
   instance with no instrumentation. The script then
   drops into an `ipython` shell where the webdriver instance is available
@@ -75,10 +73,8 @@ This means that `environment.yaml` should not be edited directly.
 Instead, place new requirements in `scripts/environment-unpinned.yaml` or `scripts/environment-unpinned-dev.yaml`
 and then run repin:
 
-```bash
-    cd scripts
-    ./repin.sh
-```
+    $ cd scripts
+    $ ./repin.sh
 
 To update the version of firefox, the TAG variable must be updated in the `./scripts/install-firefox.sh`
 script. This script contains further information about finding the right TAG.
@@ -88,13 +84,12 @@ script. This script contains further information about finding the right TAG.
 OpenWPM's tests are build on [pytest](https://docs.pytest.org/en/latest/). Execute `py.test -vv`
 in the test directory to run all tests:
 
-```bash
-    conda activate openwpm
-    py.test -vv
-```
+    $ conda activate openwpm
+    $ py.test -vv
 
 See the [pytest docs](https://docs.pytest.org/en/latest/) for more information on selecting
 specific tests and various pytest options.
+
 
 ### Updating schema docs
 

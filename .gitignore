@@ -1,6 +1,3 @@
-# Tranco list cache directory
-.tranco/
-
 # Docker volume
 docker-volume/
 
@@ -92,6 +89,7 @@ docs/apidoc/
 
 # npm packages
 node_modules
+
 # built extension artifacts
 Extension/firefox/dist
 Extension/firefox/openwpm.xpi

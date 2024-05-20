@@ -2,13 +2,16 @@
 Test function that converts our python
 objects to our JS string
 """
-
 from typing import Any, Dict, List
 
 import pytest
 from jsonschema.exceptions import ValidationError
 
 from openwpm import js_instrumentation as jsi
+
+
+def _no_whitespace(x):
+    return "".join(x.split())
 
 
 # Test our validation

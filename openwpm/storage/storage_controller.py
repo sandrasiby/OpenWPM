@@ -6,7 +6,6 @@ import random
 import socket
 import time
 from asyncio import IncompleteReadError, Task
-from asyncio.base_events import Server
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, NoReturn, Optional, Tuple
 
@@ -72,11 +71,11 @@ class StorageController:
         self._shutdown_flag = False
         self._relaxed = False
         self.logger = logging.getLogger("openwpm")
-        self.store_record_tasks: DefaultDict[VisitId, list[Task[None]]] = defaultdict(
+        self.store_record_tasks: DefaultDict[VisitId, List[Task[None]]] = defaultdict(
             list
         )
         """Contains all store_record tasks for a given visit_id"""
-        self.finalize_tasks: list[tuple[VisitId, Optional[Task[None]], bool]] = []
+        self.finalize_tasks: List[Tuple[VisitId, Optional[Task[None]], bool]] = []
         """Contains all information required for update_completion_queue to work
             Tuple structure is: VisitId, optional completion token, success
         """
@@ -97,21 +96,18 @@ class StorageController:
             self.logger.error(
                 "An exception occurred while processing records", exc_info=e
             )
-        writer.close()
-        await writer.wait_closed()
 
     async def handler(
         self, reader: asyncio.StreamReader, _: asyncio.StreamWriter
     ) -> None:
         """Created for every new connection to the Server"""
-        client_name = await get_message_from_reader(reader)
-        self.logger.info(f"Initializing new handler for {client_name}")
+        self.logger.debug("Initializing new handler")
         while True:
             try:
                 record: Tuple[str, Any] = await get_message_from_reader(reader)
             except IncompleteReadError:
                 self.logger.info(
-                    f"Terminating handler for {client_name}, because the underlying socket closed"
+                    "Terminating handler, because the underlying socket closed"
                 )
                 break
             if len(record) != 2:
@@ -162,6 +158,7 @@ class StorageController:
     async def store_record(
         self, table_name: TableName, visit_id: VisitId, data: Dict[str, Any]
     ) -> None:
+
         if visit_id == INVALID_VISIT_ID:
             # Hacking around the fact that task and crawl don't have a VisitID
             del data["visit_id"]
@@ -183,7 +180,7 @@ class StorageController:
                     signal that a visit_id is complete.
         - initialize: TODO: Start complaining if we receive data for a visit_id
                       before the initialize event happened.
-                      See also https://github.com/openwpm/OpenWPM/issues/846
+                      See also https://github.com/mozilla/OpenWPM/issues/846
         """
         action: str = data["action"]
         if action == ACTION_TYPE_INITIALIZE:
@@ -206,11 +203,6 @@ class StorageController:
         documentation
         """
 
-        # If the following critical section contains any await statement
-        # we can run into race conditions as reported by https://github.com/openwpm/OpenWPM/issues/1068
-        # By popping the tasks off we won't try to await them again in self.shutdown
-
-        # THIS IS A CRITITCAL SECTION
         if visit_id not in self.store_record_tasks:
             self.logger.error(
                 "There are no records to be stored for visit_id %d, skipping...",
@@ -218,13 +210,10 @@ class StorageController:
             )
             return None
 
-        store_record_tasks = self.store_record_tasks.pop(visit_id)
-        # END OF CRITICAL SECTION
-
         self.logger.info("Awaiting all tasks for visit_id %d", visit_id)
-        for task in store_record_tasks:
+        for task in self.store_record_tasks[visit_id]:
             await task
-
+        del self.store_record_tasks[visit_id]
         self.logger.debug(
             "Awaited all tasks for visit_id %d while finalizing", visit_id
         )
@@ -259,25 +248,19 @@ class StorageController:
             )
 
     async def shutdown(self, completion_queue_task: Task[None]) -> None:
-        self.logger.info("Entering self.shutdown")
         completion_tokens = {}
         visit_ids = list(self.store_record_tasks.keys())
         for visit_id in visit_ids:
-            # Even if the token is None, we still want to put the visit_id
-            # in the completion queue
-            completion_tokens[visit_id] = await self.finalize_visit_id(
-                visit_id, success=False
-            )
-
+            t = await self.finalize_visit_id(visit_id, success=False)
+            if t is not None:
+                completion_tokens[visit_id] = t
         await self.structured_storage.flush_cache()
         await completion_queue_task
         for visit_id, token in completion_tokens.items():
-            if token:
-                await token
+            await token
             self.completion_queue.put((visit_id, False))
 
         await self.structured_storage.shutdown()
-        self.logger.info("structured_storage is shut down")
 
         if self.unstructured_storage is not None:
             await self.unstructured_storage.flush_cache()
@@ -342,7 +325,7 @@ class StorageController:
         await self.structured_storage.init()
         if self.unstructured_storage:
             await self.unstructured_storage.init()
-        server: Server = await asyncio.start_server(
+        server: asyncio.AbstractServer = await asyncio.start_server(
             self._handler, "localhost", 0, family=socket.AF_INET
         )
         sockets = server.sockets
@@ -359,21 +342,13 @@ class StorageController:
         update_completion_queue = asyncio.create_task(
             self.update_completion_queue(), name="CompletionQueueFeeder"
         )
-        # Blocks until we should shut down
+        # Blocks until we should shutdown
         await self.should_shutdown()
-        self.logger.info(f"Closing Server")
-        server.close()
-        self.logger.info("Closed Server")
-        self.logger.info("Cancelling status_queue_update")
-        status_queue_update.cancel()
-        self.logger.info("Cancelled status_queue_update")
-        self.logger.info("Cancelling timeout_check")
-        timeout_check.cancel()
-        self.logger.info("Cancelled timeout_check")
-        self.logger.info("Starting wait_closed")
-        await server.wait_closed()
-        self.logger.info("Completed wait_closed")
 
+        server.close()
+        status_queue_update.cancel()
+        timeout_check.cancel()
+        await server.wait_closed()
         await self.shutdown(update_completion_queue)
 
     def run(self) -> None:
@@ -384,11 +359,10 @@ class StorageController:
 class DataSocket:
     """Wrapper around ClientSocket to make sending records to the StorageController more convenient"""
 
-    def __init__(self, listener_address: Tuple[str, int], client_name: str) -> None:
+    def __init__(self, listener_address: Tuple[str, int]) -> None:
         self.socket = ClientSocket(serialization="dill")
         self.socket.connect(*listener_address)
         self.logger = logging.getLogger("openwpm")
-        self.socket.send(client_name)
 
     def store_record(
         self, table_name: TableName, visit_id: VisitId, data: Dict[str, Any]
@@ -427,6 +401,7 @@ class StorageControllerHandle:
         structured_storage: StructuredStorageProvider,
         unstructured_storage: Optional[UnstructuredStorageProvider],
     ) -> None:
+
         self.listener_address: Optional[Tuple[str, int]] = None
         self.listener_process: Optional[Process] = None
         self.status_queue = Queue()
@@ -469,7 +444,7 @@ class StorageControllerHandle:
         browser_version: str,
     ) -> None:
         assert self.listener_address is not None
-        sock = DataSocket(self.listener_address, "StorageControllerHandle")
+        sock = DataSocket(self.listener_address)
         task_id = random.getrandbits(32)
         sock.store_record(
             TableName("task"),
@@ -493,7 +468,6 @@ class StorageControllerHandle:
                 },
             )
         sock.finalize_visit_id(INVALID_VISIT_ID, success=True)
-        sock.close()
 
     def launch(self) -> None:
         """Starts the storage controller"""

@@ -2,15 +2,19 @@
 Workarounds for Selenium headaches.
 """
 
+
 import errno
 import logging
 import os
 import tempfile
 import threading
 
-from openwpm.types import BrowserId
+from selenium.webdriver.common.service import Service as BaseService
+from selenium.webdriver.firefox import webdriver as FirefoxDriverModule
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
+from selenium.webdriver.firefox.options import Options
 
-__all__ = ["FirefoxLogInterceptor"]
+__all__ = ["FirefoxBinary", "FirefoxLogInterceptor", "Options"]
 
 
 def mktempfifo(suffix="", prefix="tmp", dir=None):
@@ -25,7 +29,7 @@ def mktempfifo(suffix="", prefix="tmp", dir=None):
         name = next(names)
         file = os.path.join(dir, prefix + name + suffix)
         try:
-            os.mkfifo(file, 0o600)
+            os.mkfifo(file, 384)  # 0600
             return file
         except OSError as e:
             if e.errno == errno.EEXIST:
@@ -45,22 +49,17 @@ class FirefoxLogInterceptor(threading.Thread):
     instance.
     """
 
-    def __init__(self, browser_id: BrowserId) -> None:
-        threading.Thread.__init__(
-            self,
-            name=f"log-interceptor-{browser_id}",
-        )
+    def __init__(self, browser_id):
+        threading.Thread.__init__(self, name="log-interceptor-%i" % browser_id)
         self.browser_id = browser_id
         self.fifo = mktempfifo(suffix=".log", prefix="owpm_driver_")
         self.daemon = True
         self.logger = logging.getLogger("openwpm")
-        assert self.fifo is not None
 
-    def run(self) -> None:
+    def run(self):
         # We might not ever get EOF on the FIFO, so instead we delete
         # it after we receive the first line (which means the other
         # end has actually opened it).
-        assert self.fifo is not None
         try:
             with open(self.fifo, "rt") as f:
                 for line in f:
@@ -70,9 +69,57 @@ class FirefoxLogInterceptor(threading.Thread):
                     if self.fifo is not None:
                         os.unlink(self.fifo)
                         self.fifo = None
-        except Exception:
-            self.logger.error("Error in LogInterceptor", exc_info=True)
+
         finally:
             if self.fifo is not None:
                 os.unlink(self.fifo)
                 self.fifo = None
+
+
+class PatchedGeckoDriverService(FirefoxDriverModule.Service):
+    """Object that manages the starting and stopping of the GeckoDriver.
+    Modified from the original (selenium.webdriver.firefox.service.Service)
+    for Py3 compat in the presence of log FIFOs, and for potential future
+    extra flexibility."""
+
+    def __init__(
+        self,
+        executable_path,
+        port=0,
+        service_args=None,
+        log_path="geckodriver.log",
+        env=None,
+    ):
+        """Creates a new instance of the GeckoDriver remote service proxy.
+
+        GeckoDriver provides a HTTP interface speaking the W3C WebDriver
+        protocol to Marionette.
+
+        :param executable_path: Path to the GeckoDriver binary.
+        :param port: Run the remote service on a specified port.
+            Defaults to 0, which binds to a random open port of the
+            system's choosing.
+        :param service_args: Optional list of arguments to pass to the
+            GeckoDriver binary.
+        :param log_path: Optional path for the GeckoDriver to log to.
+            Defaults to _geckodriver.log_ in the current working directory.
+        :param env: Optional dictionary of output variables to expose
+            in the services' environment.
+
+        """
+        log_file = None
+        if log_path:
+            try:
+                log_file = open(log_path, "a")
+            except OSError as e:
+                if e.errno != errno.ESPIPE:
+                    raise
+                log_file = open(log_path, "w")
+
+        BaseService.__init__(
+            self, executable_path, port=port, log_file=log_file, env=env
+        )
+        self.service_args = service_args or []
+
+
+FirefoxDriverModule.Service = PatchedGeckoDriverService

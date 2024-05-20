@@ -53,7 +53,8 @@ def get_etldp1(url) -> str:
 
 
 def bot_mitigation(webdriver):
-    """Performs three optional commands for bot-detection mitigation when getting a site"""
+    """performs three optional commands for bot-detection
+    mitigation when getting a site"""
 
     # bot mitigation 1: move the randomly around a number of times
     window_size = webdriver.get_window_size()
@@ -165,7 +166,9 @@ def close_other_windows(webdriver):
 
 
 def tab_restart_browser(webdriver):
-    """kills the current tab and creates a new one to stop traffic"""
+    """
+    kills the current tab and creates a new one to stop traffic
+    """
     # note: this technically uses windows, not tabs, due to problems with
     # chrome-targeted keyboard commands in Selenium 3 (intermittent
     # nonsense WebDriverExceptions are thrown). windows can be reliably
@@ -191,7 +194,9 @@ def tab_restart_browser(webdriver):
 
 
 class GetCommand(BaseCommand):
-    """goes to <url> using the given <webdriver> instance"""
+    """
+    goes to <url> using the given <webdriver> instance
+    """
 
     def __init__(self, url, sleep):
         self.url = url
@@ -337,6 +342,7 @@ def _stitch_screenshot_parts(visit_id, browser_id, manager_params):
             manager_params.screenshot_path, "parts", "%i*-part-*.png" % visit_id
         )
     ):
+
         # Load image from disk and parse params out of filename
         img_obj = Image.open(f)
         width, height = img_obj.size
@@ -427,6 +433,7 @@ class ScreenshotFullPageCommand(BaseCommand):
             while (
                 curr_scrollY + inner_height
             ) < max_height and curr_scrollY != prev_scrollY:
+
                 # Scroll down to bottom of previous viewport
                 try:
                     webdriver.execute_script(
@@ -473,6 +480,7 @@ class DumpPageSourceCommand(BaseCommand):
         manager_params,
         extension_socket,
     ):
+
         if self.suffix != "":
             self.suffix = "-" + self.suffix
 
@@ -544,7 +552,6 @@ class RecursiveDumpPageSourceCommand(BaseCommand):
 
 class FinalizeCommand(BaseCommand):
     """This command is automatically appended to the end of a CommandSequence
-
     It's apperance means there won't be any more commands for this
     visit_id
     """
@@ -572,8 +579,8 @@ class FinalizeCommand(BaseCommand):
 
 
 class InitializeCommand(BaseCommand):
-    """The command is automatically prepended to the beginning of a CommandSequence
-
+    """The command is automatically prepended to the beginning of a
+    CommandSequence
     It initializes state both in the extensions as well in as the
     StorageController
     """
@@ -588,5 +595,6 @@ class InitializeCommand(BaseCommand):
         manager_params,
         extension_socket,
     ):
+
         msg = {"action": "Initialize", "visit_id": self.visit_id}
         extension_socket.send(msg)

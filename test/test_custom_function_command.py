@@ -1,7 +1,6 @@
 import sqlite3
 
 from selenium.webdriver import Firefox
-from selenium.webdriver.common.by import By
 
 from openwpm import command_sequence
 from openwpm.commands.types import BaseCommand
@@ -52,16 +51,15 @@ class CollectLinksCommand(BaseCommand):
             x
             for x in (
                 element.get_attribute("href")
-                for element in webdriver.find_elements(By.TAG_NAME, "a")
+                for element in webdriver.find_elements_by_tag_name("a")
             )
-            if x is not None and x.startswith(self.scheme + "://")
+            if x.startswith(self.scheme + "://")
         ]
         current_url = webdriver.current_url
 
         sock = ClientSocket()
         assert manager_params.storage_controller_address is not None
         sock.connect(*manager_params.storage_controller_address)
-        sock.send("custom_command")
 
         for link in link_urls:
             query = (

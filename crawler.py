@@ -7,8 +7,7 @@ import time
 import typing
 from pathlib import Path
 from threading import Lock
-from types import FrameType
-from typing import Any, Callable, List, Literal, Optional
+from typing import Any, Callable, List, Literal
 
 import sentry_sdk
 
@@ -65,7 +64,7 @@ EXTENDED_LEASE_TIME = 2 * (TIMEOUT + DWELL_TIME + 30)
 # Loads the default manager params
 # We can't use more than one browser per instance because the job management
 # code below requires blocking commands. For more context see:
-# https://github.com/openwpm/OpenWPM/issues/470
+# https://github.com/mozilla/OpenWPM/issues/470
 NUM_BROWSERS = 1
 manager_params = ManagerParams()
 browser_params = [BrowserParams() for _ in range(NUM_BROWSERS)]
@@ -161,8 +160,8 @@ shutting_down = False
 
 def on_shutdown(
     manager: TaskManager, unsaved_jobs_lock: Lock
-) -> Callable[[int, Optional[FrameType]], None]:
-    def actual_callback(s: int, _: Optional[FrameType]) -> None:
+) -> Callable[[signal.Signals, Any], None]:
+    def actual_callback(s: signal.Signals, __: Any) -> None:
         global shutting_down
         manager.logger.error("Got interupted by %r, shutting down", s)
         with unsaved_jobs_lock:

@@ -5,7 +5,6 @@ dependencies:
     - codecov
     - pytest-cov
     - ipython
-    - isort
     - pip
     - pre-commit
     - pytest
