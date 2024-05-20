@@ -6,19 +6,13 @@ pushd scripts
 ./repin.sh
 popd
 
-# Make conda available to shell script
+# Make mamba available to shell script
 eval "$(conda shell.bash hook)"
 
 conda activate openwpm
 
-npm update --dev
+npm update --include=dev
 
-pushd Extension/webext-instrumentation
-
-npm update --dev
-
-pushd ../firefox
-
-npm update --dev
-popd
+pushd Extension
+npm update --include=dev
 popd

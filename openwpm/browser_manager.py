@@ -34,6 +34,7 @@ from .utilities.multiprocess_utils import (
     kill_process_and_children,
     parse_traceback_for_sentry,
 )
+from .utilities.storage_watchdog import profile_size_exceeds_max_size
 
 pickling_support.install()
 
@@ -42,14 +43,14 @@ if TYPE_CHECKING:
 
 
 class BrowserManagerHandle:
-    """
-    The BrowserManagerHandle class is responsible for holding all of the
+    """The BrowserManagerHandle class is responsible for holding all the
     configuration and status information on BrowserManager process
     it corresponds to. It also includes a set of methods for managing
     the BrowserManager process and its child processes/threads.
-    <manager_params> are the TaskManager configuration settings.
-    <browser_params> are per-browser parameter settings (e.g. whether
-                     this browser is headless, etc.)
+
+    :param manager_params: are the TaskManager configuration settings.
+    :param browser_params: are per-browser parameter settings (e.g. whether
+        this browser is headless, etc.)
     """
 
     def __init__(
@@ -501,6 +502,16 @@ class BrowserManagerHandle:
         if task_manager.closing:
             return
 
+        # Allow StorageWatchdog to utilize built-in browser reset functionality
+        # which results in a graceful restart of the browser instance
+        if self.browser_params.maximum_profile_size:
+            assert self.current_profile_path is not None
+
+            reset = profile_size_exceeds_max_size(
+                self.current_profile_path,
+                self.browser_params.maximum_profile_size,
+            )
+
         if self.restart_required or reset:
             success = self.restart_browser_manager(clear_profile=reset)
             if not success:
@@ -538,15 +549,17 @@ class BrowserManagerHandle:
         if self.browser_manager is not None and self.browser_manager.pid is not None:
             self.logger.debug(
                 "BROWSER %i: Attempting to kill BrowserManager with pid %i. "
-                "Browser PID: %s"
-                % (self.browser_id, self.browser_manager.pid, self.geckodriver_pid)
+                "Browser PID: %s",
+                self.browser_id,
+                self.browser_manager.pid,
+                self.geckodriver_pid,
             )
             try:
                 os.kill(self.browser_manager.pid, signal.SIGKILL)
             except OSError:
                 self.logger.debug(
-                    "BROWSER %i: Browser manager process does "
-                    "not exist" % self.browser_id
+                    "BROWSER %i: Browser manager process does not exist",
+                    self.browser_id,
                 )
                 pass
 
@@ -555,22 +568,28 @@ class BrowserManagerHandle:
                 os.kill(self.display_pid, signal.SIGKILL)
             except OSError:
                 self.logger.debug(
-                    "BROWSER %i: Display process does not exit" % self.browser_id
+                    "BROWSER %i: Display process does not exit", self.browser_id
                 )
                 pass
             except TypeError:
                 self.logger.error(
-                    "BROWSER %i: PID may not be the correct "
-                    "type %s" % (self.browser_id, str(self.display_pid))
+                    "BROWSER %i: PID may not be the correct " "type %s",
+                    self.browser_id,
+                    str(self.display_pid),
                 )
         if self.display_port is not None:  # xvfb display lock
-            lockfile = "/tmp/.X%s-lock" % self.display_port
+            # lockfile = "/tmp/.X%s-lock" % self.display_port
+            lockfile = os.path.join(
+                self.browser_params.tmp_profile_dir, f".X{self.display_port}-lock"
+            )
+
             try:
                 os.remove(lockfile)
             except OSError:
                 self.logger.debug(
-                    "BROWSER %i: Screen lockfile (%s) already "
-                    "removed" % (self.browser_id, lockfile)
+                    "BROWSER %i: Screen lockfile (%s) already removed",
+                    self.browser_id,
+                    lockfile,
                 )
                 pass
 

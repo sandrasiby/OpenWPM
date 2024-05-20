@@ -23,6 +23,8 @@ We're hoping to improve this setup in the future.
 
    Configuration
 
+   Papers
+
 .. toctree::
    :maxdepth: 4
    :caption: Developer documentation
@@ -33,6 +35,8 @@ We're hoping to improve this setup in the future.
    Platform-Architecture
 
    Release-Checklist
+
+   developers/JS-Instrument
 
 
 Indices and tables

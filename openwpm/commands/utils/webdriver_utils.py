@@ -16,8 +16,9 @@ from selenium.common.exceptions import (
     WebDriverException,
 )
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.wait import WebDriverWait
 
 from . import XPathUtil
 
@@ -88,7 +89,7 @@ def wait_until_loaded(webdriver, timeout, period=0.25, min_time=0):
 def get_intra_links(webdriver, url):
     ps1 = du.get_ps_plus_1(url)
     links = list()
-    for elem in webdriver.find_elements_by_tag_name("a"):
+    for elem in webdriver.find_elements(By.TAG_NAME, "a"):
         try:
             href = elem.get_attribute("href")
         except StaleElementReferenceException:
@@ -152,7 +153,7 @@ def wait_and_find(driver, locator_type, locator, timeout=3, check_iframes=True):
     else:
         if check_iframes:  # this may return the browser with an iframe active
             driver.switch_to.default_content()
-            iframes = driver.find_elements_by_tag_name("iframe")
+            iframes = driver.find_elements(By.TAG_NAME, "iframe")
 
             for iframe in iframes:
                 driver.switch_to.default_content()
@@ -280,7 +281,7 @@ def get_button_text(element):
 def iter_frames(driver):
     """Return a generator for iframes."""
     driver.switch_to.default_content()
-    iframes = driver.find_elements_by_tag_name("iframe")
+    iframes = driver.find_elements(By.TAG_NAME, "iframe")
     for iframe in iframes:
         driver.switch_to.default_content()
         yield iframe
@@ -328,7 +329,7 @@ def execute_in_all_frames(
 
     >>> def print_and_gather_links(driver, frame_stack,
     >>>                            print_prefix='', links=[]):
-    >>>     elems = driver.find_elements_by_tag_name('a')
+    >>>     elems = driver.find_elements(By.TAG_NAME, 'a')
     >>>     for elem in elems:
     >>>         link = elem.get_attribute('href')
     >>>         print print_prefix + link
@@ -370,7 +371,7 @@ def execute_in_all_frames(
     func(driver, frame_stack, **kwargs)
 
     # Grab all iframes in the current frame
-    frames = driver.find_elements_by_tag_name("iframe")
+    frames = driver.find_elements(By.TAG_NAME, "iframe")
 
     # Recurse through frames
     for frame in frames:

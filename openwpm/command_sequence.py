@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from .commands.browser_commands import (
     BrowseCommand,
@@ -36,9 +36,9 @@ class CommandSequence:
         url: str,
         reset: bool = False,
         blocking: bool = False,
-        retry_number: int = None,
-        site_rank: int = None,
-        callback: Callable[[bool], None] = None,
+        retry_number: Optional[int] = None,
+        site_rank: Optional[int] = None,
+        callback: Optional[Callable[[bool], None]] = None,
     ) -> None:
         """Initialize command sequence.
 
@@ -156,19 +156,23 @@ class CommandSequence:
         stored in `manager_params.source_dump_path` and is keyed by the
         current `visit_id` and top-level url. The source dump is a gzipped json
         file with the following structure:
-        {
-            'document_url': "http://example.com",
-            'source': "<html> ... </html>",
-            'iframes': {
-                'frame_1': {'document_url': ...,
-                            'source': ...,
-                            'iframes: { ... }},
-                'frame_2': {'document_url': ...,
-                            'source': ...,
-                            'iframes: { ... }},
-                'frame_3': { ... }
+
+        .. code-block:: JSON
+            :linenos:
+
+            {
+                "document_url": "http://example.com",
+                "source": "<html> ... </html>",
+                "iframes": {
+                    "frame_1": {"document_url": "...",
+                                "source": "...",
+                                "iframes": "{ ... }"},
+                    "frame_2": {"document_url": "...",
+                                "source": "...",
+                                "iframes": "{ ... }"},
+                    "frame_3": "{ ... }"
+                }
             }
-        }
         """
         self.total_timeout += timeout
         if not self.contains_get_or_browse:

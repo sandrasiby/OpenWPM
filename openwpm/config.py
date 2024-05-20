@@ -1,4 +1,4 @@
-import os
+import tempfile
 from dataclasses import dataclass, field
 from json import JSONEncoder
 from pathlib import Path
@@ -48,7 +48,6 @@ ALL_RESOURCE_TYPES = {
     "sub_frame",
     "web_manifest",
     "websocket",
-    "xbl",
     "xml_dtd",
     "xmlhttprequest",
     "xslt",
@@ -100,6 +99,47 @@ class BrowserParams(DataClassJsonMixin):
     profile_archive_dir: Optional[Path] = field(
         default=None, metadata=DCJConfig(encoder=path_to_str, decoder=str_to_path)
     )
+
+    tmp_profile_dir: Path = field(
+        default=Path(tempfile.gettempdir()),
+        metadata=DCJConfig(encoder=path_to_str, decoder=str_to_path),
+    )
+    """
+    The tmp_profile_dir defaults to the OS's temporary file folder (typically /tmp) and is where the generated 
+    browser profiles and residual files are stored.
+    """
+
+    maximum_profile_size: Optional[int] = None
+    """
+    The total amount of on disk space the generated 
+    browser profiles and residual files are allowed to consume in bytes.
+    If this option is not set, no checks will be performed
+
+    Rationale
+    ---------
+    This option can serve as a happy medium between killing a browser after each
+    crawl and allowing the application to still perform quickly.
+
+    Used as a way to save space
+    in a limited environment with minimal detriment to speed.
+
+    If the maximum_profile_size is exceeded after a CommandSequence
+    is completed, the browser will be shut down and a new one will
+    be created. **Even with this setting you may temporarily have
+    more disk usage than the sum of all maximum_profile_sizes**
+    However, this will also ensure that a CommandSequence is
+    allowed to complete without undue interruptions.
+
+    Sample values
+    -------------
+    * 1073741824: 1GB
+    * 20971520:  20MB - for testing purposes
+    * 52428800:  50MB
+    * 73400320:  70MB
+    * 104857600: 100MB - IDEAL for 10+ browsers
+
+    """
+
     recovery_tar: Optional[Path] = None
     donottrack: bool = False
     tracking_protection: bool = False
@@ -134,15 +174,18 @@ class ManagerParams(DataClassJsonMixin):
     """A watchdog that tries to ensure that no Firefox instance takes up too much memory.
     It is mostly useful for long running cloud crawls"""
     process_watchdog: bool = False
-    """- It is used to create another thread that kills off `GeckoDriver` (or `Xvfb`) instances that haven't been spawned by OpenWPM. (GeckoDriver is used by
-         Selenium to control Firefox and Xvfb a "virtual display" so we simulate having graphics when running on a server)."""
+    """It is used to create another thread that kills off `GeckoDriver` (or `Xvfb`)
+    instances that haven't been spawned by OpenWPM. (GeckoDriver is used by
+    Selenium to control Firefox and Xvfb a "virtual display" so we simulate having graphics when running on a server).
+    """
+
     num_browsers: int = 1
     _failure_limit: Optional[int] = None
-    """- The number of command failures the platform will tolerate before raising a
+    """The number of command failures the platform will tolerate before raising a
         `CommandExecutionError` exception. Otherwise the default is set to 2 x the
          number of browsers plus 10. The failure counter is reset at the end of each
          successfully completed command sequence.
-       - For non-blocking command sequences that cause the number of failures to
+       For non-blocking command sequences that cause the number of failures to
          exceed `failure_limit` the `CommandExecutionError` is raised when
          attempting to execute the next command sequence."""
 
@@ -207,11 +250,18 @@ def validate_browser_params(browser_params: BrowserParams) -> None:
                 )
             )
 
+        if browser_params.callstack_instrument:
+            raise ConfigError(
+                "The callstacks instrument currently doesn't work "
+                "as it is requires intricate machinery that broke "
+                "in one of the previous Firefox versions."
+            )
+
         if browser_params.callstack_instrument and not browser_params.js_instrument:
             raise ConfigError(
                 "The callstacks instrument currently doesn't work without "
                 "the JS instrument enabled. see: "
-                "https://github.com/mozilla/OpenWPM/issues/557"
+                "https://github.com/openwpm/OpenWPM/issues/557"
             )
 
         if not isinstance(browser_params.save_content, bool) and not isinstance(
