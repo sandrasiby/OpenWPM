@@ -6,12 +6,13 @@ dependencies:
     - beautifulsoup4
     - click
     - dill
+    - easyprocess
     # - firefox-unbranded - when it's available
     - gcsfs
     - geckodriver
     - leveldb
     - multiprocess
-    - nodejs==14.*.*
+    - nodejs
     - pandas
     - pip
     - pillow
@@ -27,7 +28,7 @@ dependencies:
     - tblib
     - wget
     - pip:
-      - jsonschema
-      - plyvel
-      - domain-utils
-      - dataclasses-json
+        - jsonschema
+        - plyvel
+        - domain-utils
+        - dataclasses-json

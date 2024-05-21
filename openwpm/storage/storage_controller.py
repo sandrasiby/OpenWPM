@@ -6,6 +6,7 @@ import random
 import socket
 import time
 from asyncio import IncompleteReadError, Task
+from asyncio.base_events import Server
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, NoReturn, Optional, Tuple
 
@@ -180,7 +181,7 @@ class StorageController:
                     signal that a visit_id is complete.
         - initialize: TODO: Start complaining if we receive data for a visit_id
                       before the initialize event happened.
-                      See also https://github.com/mozilla/OpenWPM/issues/846
+                      See also https://github.com/openwpm/OpenWPM/issues/846
         """
         action: str = data["action"]
         if action == ACTION_TYPE_INITIALIZE:
@@ -325,7 +326,7 @@ class StorageController:
         await self.structured_storage.init()
         if self.unstructured_storage:
             await self.unstructured_storage.init()
-        server: asyncio.AbstractServer = await asyncio.start_server(
+        server: Server = await asyncio.start_server(
             self._handler, "localhost", 0, family=socket.AF_INET
         )
         sockets = server.sockets

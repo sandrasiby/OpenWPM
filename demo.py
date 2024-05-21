@@ -23,7 +23,7 @@ sites  = df['url'].tolist()
 # and NUM_BROWSERS copies of the default BrowserParams
 
 manager_params = ManagerParams(num_browsers=NUM_BROWSERS)
-browser_params = [BrowserParams(display_mode="headless") for _ in range(NUM_BROWSERS)]
+browser_params = [BrowserParams(display_mode="native") for _ in range(NUM_BROWSERS)]
 
 # Update browser configuration (use this for per-browser settings)
 for browser_param in browser_params:
